@@ -36,7 +36,6 @@ import {
   ShieldIcon,
   ShoppingBagIcon,
   SparkleIcon,
-  StandbyIcon,
   StorageIcon,
   TasksIcon,
 } from '@apify/ui-icons';
@@ -823,28 +822,6 @@ const OperationalTabsTarget = styled.div`
   gap: 4px;
 `;
 
-const DisabledModeTab = styled.button`
-  display: inline-flex;
-  height: 32px;
-  flex: 0 0 auto;
-  align-items: center;
-  gap: 4px;
-  padding: 0 8px;
-  border: 1px solid transparent;
-  border-radius: 6px;
-  background: transparent;
-  color: ${theme.color.neutral.textDisabled};
-  font-size: 12px;
-  font-weight: 500;
-  line-height: 16px;
-  cursor: not-allowed;
-
-  svg {
-    flex: 0 0 16px;
-    color: ${theme.color.neutral.iconDisabled};
-  }
-`;
-
 const Content = styled.div<{ $detached?: boolean }>`
   flex: 1;
   min-height: 0;
@@ -1405,13 +1382,6 @@ const detachedTabs: TabData[] = [
   { id: 'tasks', title: 'Saved tasks', Icon: TasksIcon, to: '#tasks' },
 ];
 
-const disabledServerModeTab: TabData = {
-  id: 'standby',
-  title: 'Server mode',
-  Icon: StandbyIcon,
-  to: '#standby',
-};
-
 const developerTabs: TabData[] = [
   { id: 'source', title: 'Source', Icon: CodeIcon, to: '#source' },
   { id: 'publishing', title: 'Publishing', Icon: GlobeIcon, to: '#publishing' },
@@ -1425,6 +1395,8 @@ const developerTabIds = new Set(developerTabs.map(({ id }) => id));
 
 const runModeUnsupportedMessage =
   'This Actor doesn’t support Run mode. Run mode lets you configure Input and start the Actor as a run.';
+const serverModeUnsupportedMessage =
+  'This Actor doesn’t support Server mode. Server mode keeps the Actor ready to serve requests from Standby mode.';
 
 const variantOptions: Array<{ id: NavigationVariant; number: number; label: string }> = [
   { id: 'inline', number: 1, label: 'Inline' },
@@ -1465,7 +1437,6 @@ const tabRoutes: Record<string, string> = {
 
 function getDefaultTab(variant: NavigationVariant, mode: Mode, splitMode: SplitMode): string {
   if (variant === 'detached') return 'use';
-  if (variant === 'disabled') return 'standby';
   if (variant === 'split') return splitMode === 'input' ? 'actor-input' : 'endpoints';
   return mode === 'run' ? 'actor-input' : 'endpoints';
 }
@@ -1849,7 +1820,6 @@ function ModeNavigation({
     : singleTenantServerTabs;
 
   const runOnly = supportsRunMode && !supportsServerMode;
-  const serverOnly = !supportsRunMode && supportsServerMode;
   const renderTabs = (tabs: TabData[], key: string, stagger = false, collapseAt = 900) => {
     const adaptiveCollapseAt = devMode
       ? collapseAt + 40
@@ -1939,28 +1909,25 @@ function ModeNavigation({
   }
 
   if (variant === 'disabled') {
-    const disabledTabs = [disabledServerModeTab, ...serverTabs];
+    const tabs = mode === 'run' ? runTabs : serverTabs;
 
     return (
       <TabsBar>
-        <Tooltip
-          content={runModeUnsupportedMessage}
-          placement="bottom"
-          delayShow={200}
-          showInPortal
-        >
-          <DisabledModeTab
-            type="button"
-            role="tab"
-            aria-selected="false"
-            aria-disabled="true"
-            aria-label={`Run mode. ${runModeUnsupportedMessage}`}
-          >
-            <InputIcon size="16" aria-hidden="true" />
-            <span>Run mode</span>
-          </DisabledModeTab>
-        </Tooltip>
-        {renderTabs(disabledTabs, 'disabled', false, 920)}
+        <SegmentedModeControl
+          mode={mode}
+          setMode={selectMode}
+          labels={{ run: 'Run mode', server: 'Server mode' }}
+          tooltips={{
+            run: supportsRunMode
+              ? 'Run mode uses Apify Input to configure and start Actor runs.'
+              : runModeUnsupportedMessage,
+            server: supportsServerMode
+              ? 'Server mode serves requests from the Actor’s Standby mode.'
+              : serverModeUnsupportedMessage,
+          }}
+          disabledModes={{ run: !supportsRunMode, server: !supportsServerMode }}
+        />
+        {renderTabs(tabs, `disabled:${mode}`, false, mode === 'run' ? 1000 : 900)}
       </TabsBar>
     );
   }
@@ -1977,10 +1944,12 @@ function ModeNavigation({
           setMode={selectMode}
           labels={{ run: 'Run mode', server: 'Server mode' }}
           tooltips={{
-            run: serverOnly
-              ? runModeUnsupportedMessage
-              : 'Run mode uses Apify Input to configure and start Actor runs.',
-            server: 'Server mode serves requests from the Actor’s Standby mode.',
+            run: supportsRunMode
+              ? 'Run mode uses Apify Input to configure and start Actor runs.'
+              : runModeUnsupportedMessage,
+            server: supportsServerMode
+              ? 'Server mode serves requests from the Actor’s Standby mode.'
+              : serverModeUnsupportedMessage,
           }}
           disabledModes={{ run: !supportsRunMode, server: !supportsServerMode }}
         />
@@ -2057,11 +2026,9 @@ function PlaceholderContent({
   const detached = variant === 'detached';
   const modeLabel = variant === 'split'
     ? splitMode === 'input' ? 'Run mode' : 'Server mode'
-    : variant === 'disabled'
-      ? 'Server mode'
-      : detached
-        ? mode === 'run' ? 'Run mode' : 'Server mode'
-        : mode === 'run' ? 'Run mode' : 'Server mode';
+    : detached
+      ? mode === 'run' ? 'Run mode' : 'Server mode'
+      : mode === 'run' ? 'Run mode' : 'Server mode';
   const tabTitle = tabTitles[activeTab] ?? 'Content';
   const tabRoute = tabRoutes[activeTab] ?? activeTab;
 
@@ -2079,9 +2046,13 @@ function PlaceholderContent({
               mode={mode}
               setMode={selectDetachedMode}
               labels={{ run: 'Run mode', server: 'Server mode' }}
-              tooltips={!supportsRunMode ? {
-                run: runModeUnsupportedMessage,
-                server: 'Server mode serves requests from the Actor’s Standby mode.',
+              tooltips={!supportsRunMode || !supportsServerMode ? {
+                run: supportsRunMode
+                  ? 'Run mode uses Apify Input to configure and start Actor runs.'
+                  : runModeUnsupportedMessage,
+                server: supportsServerMode
+                  ? 'Server mode serves requests from the Actor’s Standby mode.'
+                  : serverModeUnsupportedMessage,
               } : undefined}
               disabledModes={{ run: !supportsRunMode, server: !supportsServerMode }}
             />
@@ -2436,7 +2407,7 @@ function PrototypeInner() {
   useEffect(() => {
     if (!standbyFlowEnabled) return;
 
-    if (isInlineVariant(variant)) {
+    if (isInlineVariant(variant) || variant === 'disabled') {
       setMode('server');
       setActiveTab('endpoints');
     } else if (variant === 'split') {
@@ -2481,7 +2452,7 @@ function PrototypeInner() {
   };
 
   const selectTenancy = (nextMultiTenant: boolean) => {
-    const serverModeActive = variant === 'disabled'
+    const serverModeActive = (variant === 'disabled' && mode === 'server')
       || (isInlineVariant(variant) && mode === 'server')
       || (variant === 'split' && splitMode === 'server');
 
@@ -2498,7 +2469,7 @@ function PrototypeInner() {
   };
 
   const selectDevMode = (nextDevMode: boolean) => {
-    const serverModeActive = variant === 'disabled'
+    const serverModeActive = (variant === 'disabled' && mode === 'server')
       || (isInlineVariant(variant) && mode === 'server')
       || (variant === 'split' && splitMode === 'server');
 
@@ -2523,7 +2494,17 @@ function PrototypeInner() {
 
   const selectRunModeSupport = (supported: boolean) => {
     setSupportsRunMode(supported);
-    if (supported || !supportsServerMode) return;
+
+    if (supported) {
+      if (!supportsServerMode) {
+        setMode('run');
+        setSplitMode('input');
+        setActiveTab('actor-input');
+      }
+      return;
+    }
+
+    if (!supportsServerMode) return;
 
     setMode('server');
     setSplitMode('server');
@@ -2532,7 +2513,17 @@ function PrototypeInner() {
 
   const selectServerModeSupport = (supported: boolean) => {
     setSupportsServerMode(supported);
-    if (supported || !supportsRunMode) return;
+
+    if (supported) {
+      if (!supportsRunMode) {
+        setMode('server');
+        setSplitMode('server');
+        setActiveTab(variant === 'detached' ? 'use' : 'endpoints');
+      }
+      return;
+    }
+
+    if (!supportsRunMode) return;
 
     setMode('run');
     setSplitMode('input');
