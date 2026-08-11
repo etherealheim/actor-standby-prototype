@@ -1216,6 +1216,9 @@ const TenancyDropdownLabel = styled.span`
   display: inline-flex;
   align-items: center;
   gap: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
 `;
 
 const FlowPopoverCard = styled.aside<{ $arrowLeft: number; $placement: 'top' | 'bottom' }>`
