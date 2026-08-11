@@ -1313,11 +1313,20 @@ const runTabs: TabData[] = [
   { id: 'tasks', title: 'Saved tasks', Icon: TasksIcon, to: '#tasks' },
 ];
 
-const serverTabs: TabData[] = [
+const singleTenantServerTabs: TabData[] = [
   { id: 'endpoints', title: 'Endpoints', Icon: ApiIcon, to: '#endpoints' },
   { id: 'requests', title: 'Requests', Icon: PlayIcon, to: '#requests' },
   { id: 'builds', title: 'Builds', Icon: BuildsIcon, to: '#builds' },
   { id: 'monitoring', title: 'Monitoring', Icon: MonitoringIcon, to: '#monitoring' },
+  { id: 'tasks', title: 'Saved tasks', Icon: TasksIcon, to: '#tasks' },
+];
+
+const multiTenantServerTabs: TabData[] = [
+  { id: 'endpoints', title: 'Endpoints', Icon: ApiIcon, to: '#endpoints' },
+  { id: 'requests', title: 'Requests', Icon: PlayIcon, to: '#requests' },
+  { id: 'builds', title: 'Builds', Icon: BuildsIcon, to: '#builds' },
+  { id: 'monitoring', title: 'Monitoring', Icon: MonitoringIcon, to: '#monitoring' },
+  { id: 'tasks', title: 'Saved tasks', Icon: TasksIcon, to: '#tasks' },
 ];
 
 const detachedTabs: TabData[] = [
@@ -1327,13 +1336,12 @@ const detachedTabs: TabData[] = [
   { id: 'tasks', title: 'Saved tasks', Icon: TasksIcon, to: '#tasks' },
 ];
 
-const disabledTabs: TabData[] = [
-  { id: 'standby', title: 'Server mode', Icon: StandbyIcon, to: '#standby' },
-  { id: 'endpoints', title: 'Endpoints', Icon: ApiIcon, to: '#endpoints' },
-  { id: 'requests', title: 'Requests', Icon: PlayIcon, to: '#requests' },
-  { id: 'builds', title: 'Builds', Icon: BuildsIcon, to: '#builds' },
-  { id: 'monitoring', title: 'Monitoring', Icon: MonitoringIcon, to: '#monitoring' },
-];
+const disabledServerModeTab: TabData = {
+  id: 'standby',
+  title: 'Server mode',
+  Icon: StandbyIcon,
+  to: '#standby',
+};
 
 const variantOptions: Array<{ id: NavigationVariant; number: number; label: string }> = [
   { id: 'inline', number: 1, label: 'Inline' },
@@ -1621,6 +1629,7 @@ function ModeNavigation({
   setActiveTab,
   splitMode,
   setSplitMode,
+  multiTenant,
 }: {
   mode: Mode;
   setMode: (mode: Mode) => void;
@@ -1629,6 +1638,7 @@ function ModeNavigation({
   setActiveTab: (tab: string) => void;
   splitMode: SplitMode;
   setSplitMode: (mode: SplitMode) => void;
+  multiTenant: boolean;
 }) {
   const [staggerMode, setStaggerMode] = useState<Mode>();
   const [staggerSplitMode, setStaggerSplitMode] = useState<SplitMode>();
@@ -1665,6 +1675,8 @@ function ModeNavigation({
     setActiveTab(nextMode);
   };
 
+  const serverTabs = multiTenant ? multiTenantServerTabs : singleTenantServerTabs;
+
   if (variant === 'detached') {
     return (
       <TabsBar $compact>
@@ -1674,6 +1686,8 @@ function ModeNavigation({
   }
 
   if (variant === 'disabled') {
+    const disabledTabs = [disabledServerModeTab, ...serverTabs];
+
     return (
       <TabsBar>
         <Tooltip
@@ -2054,6 +2068,7 @@ function PrototypeInner() {
           setActiveTab={setActiveTab}
           splitMode={splitMode}
           setSplitMode={setSplitMode}
+          multiTenant={multiTenant}
         />
         <PlaceholderContent
           variant={variant}
