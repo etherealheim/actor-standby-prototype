@@ -778,36 +778,26 @@ const FullTabSet = styled.div<{ $collapseAt: number }>`
   }
 `;
 
-const MediumTabSet = styled.div<{ $collapseAt: number; $compactAt: number }>`
+const ResponsiveOverflowTabSet = styled.div<{ $minWidth: number; $maxWidth: number }>`
   display: none;
   min-width: 0;
   flex: 1;
   align-items: center;
   gap: 4px;
 
-  @container actor-tabs (max-width: ${({ $collapseAt }) => `${$collapseAt}px`}) {
-    display: flex;
-  }
-
-  @container actor-tabs (max-width: ${({ $compactAt }) => `${$compactAt}px`}) {
-    display: none;
-  }
-`;
-
-const CompactTabSet = styled.div<{ $compactAt: number }>`
-  display: none;
-  min-width: 0;
-  flex: 1;
-  align-items: center;
-  gap: 4px;
-
-  @container actor-tabs (max-width: ${({ $compactAt }) => `${$compactAt}px`}) {
+  @container actor-tabs
+    (min-width: ${({ $minWidth }) => `${$minWidth}px`})
+    and (max-width: ${({ $maxWidth }) => `${$maxWidth}px`}) {
     display: flex;
   }
 `;
 
 const MoreDropdownTab = styled(ModeDropdownTab)`
   flex: 0 0 auto;
+
+  > button {
+    color: ${theme.color.neutral.textMuted};
+  }
 `;
 
 const OverflowVisibleTabs = styled(ModeTabs)`
@@ -1829,17 +1819,26 @@ function ModeNavigation({
   const runOnly = supportsRunMode && !supportsServerMode;
   const serverOnly = !supportsRunMode && supportsServerMode;
   const renderTabs = (tabs: TabData[], key: string, stagger = false, collapseAt = 900) => {
-    const compactAt = Math.max(620, collapseAt - 120);
-    const mediumVisibleCount = Math.max(1, tabs.length - 1);
-    const compactVisibleCount = tabs.length >= 6 ? 3 : 2;
-    const mediumVisibleTabs = tabs.slice(0, mediumVisibleCount);
-    const mediumOverflowTabs = tabs.slice(mediumVisibleCount);
-    const visibleTabs = tabs.slice(0, compactVisibleCount);
-    const overflowTabs = tabs.slice(compactVisibleCount);
+    const adaptiveCollapseAt = devMode
+      ? collapseAt + 40
+      : Math.max(480, collapseAt - 240);
+    const collapseStep = 80;
+    const overflowStates = Array.from({ length: Math.max(0, tabs.length - 1) }, (_, index) => {
+      const hiddenCount = index + 1;
+      const visibleCount = tabs.length - hiddenCount;
+
+      return {
+        hiddenCount,
+        maxWidth: adaptiveCollapseAt - (hiddenCount - 1) * collapseStep,
+        minWidth: visibleCount === 1 ? 0 : adaptiveCollapseAt - hiddenCount * collapseStep + 1,
+        visibleTabs: tabs.slice(0, visibleCount),
+        overflowTabs: tabs.slice(visibleCount),
+      };
+    });
 
     return (
       <>
-        <FullTabSet $collapseAt={collapseAt}>
+        <FullTabSet $collapseAt={adaptiveCollapseAt}>
           <ModeTabs
             key={`${key}:full`}
             $stagger={stagger}
@@ -1849,32 +1848,22 @@ function ModeNavigation({
             onSelect={selectTab}
           />
         </FullTabSet>
-        <CompactTabSet $compactAt={compactAt}>
-          <OverflowVisibleTabs
-            key={`${key}:compact`}
-            $stagger={stagger}
-            variant="buttoned"
-            tabs={visibleTabs}
-            activeTab={activeTab}
-            onSelect={selectTab}
-          />
-          {overflowTabs.length > 0 && (
+        {overflowStates.map(({ hiddenCount, minWidth, maxWidth, visibleTabs, overflowTabs }) => (
+          <ResponsiveOverflowTabSet
+            key={`${key}:overflow:${hiddenCount}`}
+            $minWidth={minWidth}
+            $maxWidth={maxWidth}
+          >
+            <OverflowVisibleTabs
+              $stagger={stagger}
+              variant="buttoned"
+              tabs={visibleTabs}
+              activeTab={activeTab}
+              onSelect={selectTab}
+            />
             <OverflowTabs tabs={overflowTabs} activeTab={activeTab} setActiveTab={setActiveTab} />
-          )}
-        </CompactTabSet>
-        <MediumTabSet $collapseAt={collapseAt} $compactAt={compactAt}>
-          <OverflowVisibleTabs
-            key={`${key}:medium`}
-            $stagger={stagger}
-            variant="buttoned"
-            tabs={mediumVisibleTabs}
-            activeTab={activeTab}
-            onSelect={selectTab}
-          />
-          {mediumOverflowTabs.length > 0 && (
-            <OverflowTabs tabs={mediumOverflowTabs} activeTab={activeTab} setActiveTab={setActiveTab} />
-          )}
-        </MediumTabSet>
+          </ResponsiveOverflowTabSet>
+        ))}
         {devMode && (
           <ModeTabs
             $right
