@@ -14,6 +14,7 @@ import {
   CodeIcon,
   CopyIcon,
   CreditCardIcon,
+  CrossIcon,
   DatabaseIcon,
   EditIcon,
   GlobeIcon,
@@ -29,6 +30,7 @@ import {
   SettingsIcon,
   ShieldIcon,
   ShoppingBagIcon,
+  SparkleIcon,
   StandbyIcon,
   StorageIcon,
   TasksIcon,
@@ -929,6 +931,159 @@ const VariantNumber = styled.span`
   font-variant-numeric: tabular-nums;
 `;
 
+const DockDivider = styled.span`
+  width: 1px;
+  height: 24px;
+  margin: 0 3px;
+  background: ${theme.color.neutral.separatorSubtle};
+`;
+
+const FlowToggleButton = styled.button<{ $active: boolean }>`
+  display: inline-flex;
+  height: 40px;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: ${({ $active }) => ($active ? theme.color.neutral.backgroundSubtle : 'transparent')};
+  color: ${({ $active }) => ($active ? theme.color.neutral.text : theme.color.neutral.textSubtle)};
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+  cursor: pointer;
+
+  &:hover {
+    background: ${theme.color.neutral.hover};
+    color: ${theme.color.neutral.text};
+  }
+
+  &:focus-visible {
+    outline: 2px solid ${theme.color.primary.fieldBorderActive};
+    outline-offset: 2px;
+  }
+`;
+
+const FlowToggleTrack = styled.span<{ $active: boolean }>`
+  position: relative;
+  width: 28px;
+  height: 16px;
+  flex: 0 0 28px;
+  border-radius: 999px;
+  background: ${({ $active }) => ($active ? theme.color.primary.action : theme.color.neutral.border)};
+  transition-property: background-color;
+  transition-duration: 160ms;
+  transition-timing-function: ease-out;
+`;
+
+const FlowToggleThumb = styled.span<{ $active: boolean }>`
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: ${theme.color.neutral.background};
+  box-shadow: 0 1px 2px rgb(0 0 0 / 20%);
+  transform: translateX(${({ $active }) => ($active ? '12px' : '0')});
+  transition-property: transform;
+  transition-duration: 180ms;
+  transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+`;
+
+const FlowPopoverCard = styled.aside<{ $arrowLeft: number; $placement: 'top' | 'bottom' }>`
+  position: fixed;
+  z-index: 50;
+  width: 320px;
+  padding: 16px;
+  border: 1px solid ${theme.color.neutral.border};
+  border-radius: 8px;
+  background: ${theme.color.neutral.background};
+  box-shadow: ${theme.shadow.shadow2};
+
+  &::before {
+    position: absolute;
+    left: ${({ $arrowLeft }) => `${$arrowLeft}px`};
+    width: 10px;
+    height: 10px;
+    border-top: ${({ $placement }) => ($placement === 'bottom' ? `1px solid ${theme.color.neutral.border}` : '0')};
+    border-left: ${({ $placement }) => ($placement === 'bottom' ? `1px solid ${theme.color.neutral.border}` : '0')};
+    border-right: ${({ $placement }) => ($placement === 'top' ? `1px solid ${theme.color.neutral.border}` : '0')};
+    border-bottom: ${({ $placement }) => ($placement === 'top' ? `1px solid ${theme.color.neutral.border}` : '0')};
+    background: ${theme.color.neutral.background};
+    content: '';
+    transform: translateX(-50%) rotate(45deg);
+    ${({ $placement }) => ($placement === 'bottom' ? 'top: -6px;' : 'bottom: -6px;')}
+  }
+`;
+
+const FlowPopoverHeader = styled.div`
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+`;
+
+const FlowPopoverEyebrow = styled.div`
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 8px;
+  color: ${theme.color.primary.text};
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 16px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+`;
+
+const FlowPopoverTitle = styled.h2`
+  margin: 0;
+  color: ${theme.color.neutral.text};
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 24px;
+`;
+
+const FlowPopoverClose = styled.button`
+  display: grid;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: ${theme.color.neutral.icon};
+  cursor: pointer;
+
+  &:hover {
+    background: ${theme.color.neutral.hover};
+  }
+`;
+
+const FlowPopoverBody = styled.p`
+  margin: 8px 0 16px;
+  color: ${theme.color.neutral.textSubtle};
+  font-size: 13px;
+  line-height: 20px;
+  text-wrap: pretty;
+`;
+
+const FlowPopoverFooter = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+`;
+
+const FlowStep = styled.span`
+  color: ${theme.color.neutral.textMuted};
+  font-size: 11px;
+  line-height: 16px;
+`;
+
 const Execute = styled(Button)`
   position: absolute;
   top: 12px;
@@ -1192,6 +1347,7 @@ function SegmentedModeControl({
         type="button"
         role="tab"
         data-mode={segmentMode}
+        data-flow-target={segmentMode === 'server' ? 'server-mode' : undefined}
         aria-selected={mode === segmentMode}
         tabIndex={mode === segmentMode ? 0 : -1}
         $active={mode === segmentMode}
@@ -1339,6 +1495,7 @@ function ModeNavigation({
               role: 'tab',
               'aria-selected': activeTab === splitMode,
               'aria-label': `${splitMode === 'input' ? 'Run mode' : 'Server mode'}, choose Actor mode`,
+              'data-flow-target': 'server-mode',
               onClick: () => undefined,
             } as React.ComponentProps<typeof DropdownButton>['buttonProps']}
             contentProps={{ side: 'bottom', align: 'start', sideOffset: 4 }}
@@ -1427,12 +1584,130 @@ function PlaceholderContent({
   );
 }
 
+function FlowOnboarding({
+  open,
+  contextKey,
+  onDismiss,
+}: {
+  open: boolean;
+  contextKey: string;
+  onDismiss: () => void;
+}) {
+  const [position, setPosition] = useState<{
+    top: number;
+    left: number;
+    arrowLeft: number;
+    placement: 'top' | 'bottom';
+  }>();
+
+  useEffect(() => {
+    if (!open) {
+      setPosition(undefined);
+      return;
+    }
+
+    const findTarget = () => document.querySelector<HTMLElement>('[data-flow-target="server-mode"]')
+      ?? [...document.querySelectorAll<HTMLElement>('[role="tab"]')]
+        .find((element) => element.textContent?.trim() === 'Server mode');
+
+    let target = findTarget();
+    let resizeObserver: ResizeObserver | undefined;
+
+    const updatePosition = () => {
+      target = findTarget();
+      if (!target) return;
+
+      const targetRect = target.getBoundingClientRect();
+      const cardWidth = 320;
+      const estimatedCardHeight = 210;
+      const viewportPadding = 12;
+      const gap = 12;
+      const targetCenter = targetRect.left + targetRect.width / 2;
+      const left = Math.max(
+        viewportPadding,
+        Math.min(window.innerWidth - cardWidth - viewportPadding, targetCenter - cardWidth / 2),
+      );
+      const fitsBelow = targetRect.bottom + gap + estimatedCardHeight <= window.innerHeight - viewportPadding;
+      const placement = fitsBelow ? 'bottom' : 'top';
+      const top = placement === 'bottom'
+        ? targetRect.bottom + gap
+        : targetRect.top - estimatedCardHeight - gap;
+
+      setPosition({
+        top,
+        left,
+        arrowLeft: Math.max(20, Math.min(cardWidth - 20, targetCenter - left)),
+        placement,
+      });
+    };
+
+    updatePosition();
+    if (target) {
+      resizeObserver = new ResizeObserver(updatePosition);
+      resizeObserver.observe(target);
+    }
+
+    const settleTimer = window.setTimeout(updatePosition, 320);
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onDismiss();
+    };
+
+    window.addEventListener('resize', updatePosition);
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.clearTimeout(settleTimer);
+      resizeObserver?.disconnect();
+      window.removeEventListener('resize', updatePosition);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [contextKey, open]);
+
+  if (!open || !position) return null;
+
+  return (
+    <FlowPopoverCard
+      role="dialog"
+      aria-modal="false"
+      aria-labelledby="server-mode-flow-title"
+      $arrowLeft={position.arrowLeft}
+      $placement={position.placement}
+      style={{ top: position.top, left: position.left }}
+    >
+      <FlowPopoverHeader>
+        <div>
+          <FlowPopoverEyebrow>
+            <SparkleIcon size="12" aria-hidden="true" />
+            First-time guide
+          </FlowPopoverEyebrow>
+          <FlowPopoverTitle id="server-mode-flow-title">Meet Server mode</FlowPopoverTitle>
+        </div>
+        <FlowPopoverClose type="button" aria-label="Dismiss Server mode guide" onClick={onDismiss}>
+          <CrossIcon size="16" aria-hidden="true" />
+        </FlowPopoverClose>
+      </FlowPopoverHeader>
+      <FlowPopoverBody>
+        Server mode keeps this Actor ready to receive HTTP requests. Use it when your integration needs an immediate
+        response instead of starting a new run each time.
+      </FlowPopoverBody>
+      <FlowPopoverFooter>
+        <FlowStep>1 of 1</FlowStep>
+        <Button size="small" variant="primary" onClick={onDismiss}>Got it</Button>
+      </FlowPopoverFooter>
+    </FlowPopoverCard>
+  );
+}
+
 function VariantSelector({
   variant,
   onSelect,
+  flowsEnabled,
+  onToggleFlows,
 }: {
   variant: NavigationVariant;
   onSelect: (variant: NavigationVariant) => void;
+  flowsEnabled: boolean;
+  onToggleFlows: () => void;
 }) {
   return (
     <VariantDock aria-label="Navigation design options">
@@ -1450,6 +1725,19 @@ function VariantSelector({
           <span>{option.label}</span>
         </VariantButton>
       ))}
+      <DockDivider aria-hidden="true" />
+      <FlowToggleButton
+        type="button"
+        $active={flowsEnabled}
+        aria-pressed={flowsEnabled}
+        aria-label={`${flowsEnabled ? 'Disable' : 'Enable'} Server mode onboarding flow`}
+        onClick={onToggleFlows}
+      >
+        <span>Flows</span>
+        <FlowToggleTrack $active={flowsEnabled} aria-hidden="true">
+          <FlowToggleThumb $active={flowsEnabled} />
+        </FlowToggleTrack>
+      </FlowToggleButton>
     </VariantDock>
   );
 }
@@ -1459,6 +1747,7 @@ function PrototypeInner() {
   const [splitMode, setSplitMode] = useState<SplitMode>('input');
   const [variant, setVariant] = useState<NavigationVariant>('inline');
   const [activeTab, setActiveTab] = useState('run');
+  const [flowsEnabled, setFlowsEnabled] = useState(false);
 
   useEffect(() => {
     const option = Number(new URLSearchParams(window.location.search).get('option'));
@@ -1469,6 +1758,23 @@ function PrototypeInner() {
       setActiveTab(getDefaultTab(initialVariant, mode, splitMode));
     }
   }, []);
+
+  useEffect(() => {
+    if (!flowsEnabled) return;
+
+    if (variant === 'inline') {
+      setMode('server');
+      setActiveTab('server');
+    } else if (variant === 'split') {
+      setSplitMode('server');
+      setActiveTab('server');
+    } else if (variant === 'detached') {
+      setMode('server');
+      setActiveTab('use');
+    } else {
+      setActiveTab('standby');
+    }
+  }, [flowsEnabled, variant]);
 
   const selectVariant = (nextVariant: NavigationVariant) => {
     setVariant(nextVariant);
@@ -1503,7 +1809,17 @@ function PrototypeInner() {
           setActiveTab={setActiveTab}
         />
       </MainColumn>
-      <VariantSelector variant={variant} onSelect={selectVariant} />
+      <FlowOnboarding
+        open={flowsEnabled}
+        contextKey={`${variant}:${mode}:${splitMode}:${activeTab}`}
+        onDismiss={() => setFlowsEnabled(false)}
+      />
+      <VariantSelector
+        variant={variant}
+        onSelect={selectVariant}
+        flowsEnabled={flowsEnabled}
+        onToggleFlows={() => setFlowsEnabled((enabled) => !enabled)}
+      />
     </Shell>
   );
 }
