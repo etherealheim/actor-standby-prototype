@@ -742,6 +742,10 @@ const ModeTabs = styled(Tabs)<{ $stagger?: boolean }>`
         animation-delay: 192ms;
       }
 
+      [role='tab']:nth-child(6) {
+        animation-delay: 240ms;
+      }
+
       @media (prefers-reduced-motion: reduce) {
         [role='tab'] {
           opacity: 1;
