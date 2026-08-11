@@ -484,6 +484,9 @@ const ModeDropdownTab = styled.div<{ $active: boolean }>`
     border-radius: 6px;
     background: ${({ $active }) => ($active ? theme.color.neutral.background : 'transparent')};
     color: ${({ $active }) => ($active ? theme.color.neutral.text : theme.color.neutral.textSubtle)};
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 16px;
     cursor: pointer;
 
     &:hover {
