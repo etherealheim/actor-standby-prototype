@@ -12,11 +12,15 @@ import {
   ChevronDownIcon,
   ClockIcon,
   CodeIcon,
+  CommentIcon,
   CopyIcon,
   CreditCardIcon,
   CrossIcon,
   DatabaseIcon,
+  DevelopmentIcon,
   EditIcon,
+  ExpandIcon,
+  FilterIcon,
   GlobeIcon,
   HomeIcon,
   InputIcon,
@@ -93,41 +97,53 @@ const dependencies: UiDependencies = {
   tooltipSafeHtml: (content: ReactNode) => content,
 };
 
-const Shell = styled.main`
+const Shell = styled.main<{ $sidebarCompact: boolean }>`
   display: grid;
-  grid-template-columns: 220px minmax(0, 1fr);
+  grid-template-columns: ${({ $sidebarCompact }) => ($sidebarCompact ? '41px' : '220px')} minmax(0, 1fr);
   width: 100vw;
   min-width: 1024px;
   height: 100vh;
   min-height: 640px;
   background: ${theme.color.neutral.background};
+  transition: grid-template-columns ${theme.transition.smoothEaseOut};
 `;
 
-const Sidebar = styled.aside`
-  position: relative;
+const SidebarTop = styled.div`
   display: flex;
   flex-direction: column;
-  width: 220px;
-  height: 100%;
-  border-right: 1px solid ${theme.color.neutral.separatorSubtle};
-  background: ${theme.color.neutral.background};
-  overflow: hidden;
-`;
-
-const Account = styled.div`
-  display: flex;
-  align-items: center;
   gap: 8px;
-  height: 56px;
-  padding: 8px 12px;
+  padding: 12px 8px;
 `;
 
-const AccountCopy = styled.div`
+const Account = styled.button`
+  display: flex;
+  width: 100%;
+  height: 40px;
+  align-items: center;
+  gap: 6px;
+  padding: 4px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: ${theme.color.neutral.text};
+  cursor: pointer;
+  text-align: left;
+  transition-property: background-color;
+  transition-duration: 120ms;
+
+  &:hover {
+    background: ${theme.color.neutral.backgroundSubtle};
+  }
+`;
+
+const AccountCopy = styled.span`
+  display: flex;
   min-width: 0;
   flex: 1;
+  flex-direction: column;
 `;
 
-const AccountName = styled.div`
+const AccountName = styled.span`
   overflow: hidden;
   font-size: 12px;
   font-weight: 500;
@@ -137,7 +153,7 @@ const AccountName = styled.div`
   white-space: nowrap;
 `;
 
-const AccountPlan = styled.div`
+const AccountPlan = styled.span`
   font-size: 12px;
   line-height: 16px;
   color: ${theme.color.neutral.textSubtle};
@@ -145,31 +161,46 @@ const AccountPlan = styled.div`
 
 const SidebarSearchRow = styled.div`
   display: flex;
+  width: 100%;
+  align-items: center;
   gap: 4px;
-  height: 40px;
-  padding: 4px 8px;
 `;
 
-const SearchBox = styled.div`
+const SearchBox = styled.button`
   display: flex;
   align-items: center;
   min-width: 0;
   flex: 1;
-  height: 32px;
-  padding: 0 7px;
-  gap: 6px;
-  border: 1px solid ${theme.color.neutral.fieldBorder};
+  height: 28px;
+  padding: 0 4px 0 8px;
+  gap: 4px;
+  border: 1px solid ${theme.color.neutral.border};
   border-radius: 6px;
   color: ${theme.color.neutral.icon};
-  background: ${theme.color.neutral.background};
+  background: ${theme.color.neutral.backgroundMuted};
+  cursor: pointer;
 
-  span {
-    flex: 1;
-    min-width: 0;
-    font-size: 12px;
-    line-height: 16px;
-    color: ${theme.color.neutral.textSubtle};
+  &:hover {
+    border-color: ${theme.color.primary.fieldBorderActive};
+    background: ${theme.color.neutral.background};
   }
+
+  &:focus-visible {
+    outline: 2px solid ${theme.color.primary.action};
+    outline-offset: 2px;
+  }
+`;
+
+const SearchLabel = styled.span`
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  color: ${theme.color.neutral.textPlaceholder};
+  font-size: 12px;
+  line-height: 16px;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 `;
 
 const Shortcut = styled.kbd`
@@ -191,14 +222,22 @@ const NotificationButton = styled.button`
   position: relative;
   display: grid;
   place-items: center;
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
   padding: 0;
   border: 1px solid ${theme.color.neutral.border};
   border-radius: 6px;
   background: ${theme.color.neutral.backgroundMuted};
   color: ${theme.color.neutral.text};
   cursor: pointer;
+  transition-property: background-color, border-color;
+  transition-duration: 120ms;
+
+  &:hover {
+    border-color: ${theme.color.primary.fieldBorderActive};
+    background: ${theme.color.neutral.background};
+  }
 
   &::after {
     position: absolute;
@@ -218,50 +257,114 @@ const SidebarNav = styled.nav`
   flex: 1;
   min-height: 0;
   flex-direction: column;
-  padding: 4px 8px 12px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    width: 0;
+  }
 `;
 
-const NavCluster = styled.div`
+const NavDivider = styled.div`
+  width: 100%;
+  height: 0;
+  flex: 0 0 auto;
+  border-bottom: 1px solid ${theme.color.neutral.separatorSubtle};
+`;
+
+const NavSection = styled.div<{ $bottom?: boolean }>`
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: ${({ $bottom }) => ($bottom ? '4px' : '6px')};
+  padding: ${({ $bottom }) => ($bottom ? '0 8px 12px' : '8px 8px 0')};
 `;
 
 const NavSpacer = styled.div`
   flex: 1;
-  min-height: 24px;
 `;
 
-const NavItem = styled.a<{ $selected?: boolean }>`
+const NavItem = styled.button<{ $selected?: boolean }>`
   display: flex;
+  position: relative;
   align-items: center;
   gap: 8px;
   width: 100%;
-  height: 28px;
+  min-height: 28px;
   padding: 4px 8px;
+  border: 0;
   border-radius: 6px;
   color: ${theme.color.neutral.text};
   background: ${({ $selected }) => ($selected ? theme.color.neutral.backgroundSubtle : 'transparent')};
+  cursor: pointer;
   font-size: 13px;
   font-weight: 500;
   line-height: 16px;
-  text-decoration: none;
+  text-align: left;
+  transition-property: background-color, color;
+  transition-duration: 120ms;
 
   &:hover {
-    background: ${theme.color.neutral.hover};
+    background: ${theme.color.neutral.backgroundSubtle};
+  }
+
+  svg {
+    flex: 0 0 auto;
+    color: ${theme.color.neutral.textSubtle};
   }
 `;
 
-const SectionLabel = styled.div`
+const NavItemLabel = styled.span`
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+`;
+
+const DevelopmentGroup = styled.div`
   display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px 0 4px;
+`;
+
+const SectionLabel = styled.button`
+  display: flex;
+  width: 100%;
   align-items: center;
   justify-content: space-between;
   height: 28px;
-  padding: 4px 8px;
-  font-size: 12px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: ${theme.color.neutral.textSubtle};
+  cursor: pointer;
+  font-size: 13px;
   font-weight: 500;
   line-height: 16px;
-  color: ${theme.color.neutral.textSubtle};
+
+  &:hover {
+    background: ${theme.color.neutral.backgroundSubtle};
+  }
+
+  svg {
+    transition-property: transform;
+    transition-duration: 150ms;
+  }
+
+  &[aria-expanded='true'] svg {
+    transform: rotate(180deg);
+  }
+`;
+
+const DevelopmentItems = styled.div`
+  display: flex;
+  width: calc(100% - 8px);
+  flex-direction: column;
+  gap: 4px;
+  margin-left: 8px;
 `;
 
 const UsageBox = styled.div`
@@ -286,12 +389,13 @@ const UsageLine = styled.div`
   }
 `;
 
-const SidebarFooter = styled.div`
+const SidebarFooter = styled.footer`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 52px;
-  padding: 8px 16px;
+  min-height: 52px;
+  gap: 8px;
+  padding: 12px 16px;
 `;
 
 const ApifyLogo = styled.img`
@@ -306,8 +410,86 @@ const FooterActions = styled.div`
   gap: 4px;
 `;
 
+const compactSidebar = css`
+  ${SidebarTop} {
+    padding: 0;
+  }
+
+  ${Account} {
+    height: 48px;
+    justify-content: center;
+    padding: 8px;
+  }
+
+  ${AccountCopy},
+  ${SearchLabel},
+  ${Shortcut},
+  ${NavItemLabel},
+  ${SectionLabel} span,
+  ${ApifyLogo},
+  ${UsageBox},
+  .nav-disclosure {
+    display: none;
+  }
+
+  ${SidebarSearchRow},
+  ${FooterActions} {
+    flex-direction: column;
+  }
+
+  ${SidebarSearchRow} {
+    gap: 8px;
+    padding: 0 6px 5px;
+  }
+
+  ${SearchBox} {
+    width: 28px;
+    flex: 0 0 28px;
+    justify-content: center;
+    padding: 0;
+  }
+
+  ${NavSection} {
+    padding: 6px;
+  }
+
+  ${NavItem},
+  ${SectionLabel} {
+    justify-content: center;
+    padding: 6px;
+  }
+
+  ${DevelopmentItems} {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  ${SidebarFooter} {
+    justify-content: center;
+    padding: 8px 4px;
+  }
+`;
+
+const Sidebar = styled.aside<{ $compact: boolean }>`
+  position: fixed;
+  z-index: 20;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  width: ${({ $compact }) => ($compact ? '41px' : '220px')};
+  flex-direction: column;
+  overflow: hidden;
+  border-right: 1px solid ${theme.color.neutral.separatorSubtle};
+  background: ${theme.color.neutral.background};
+  transition: width ${theme.transition.smoothEaseOut};
+
+  ${({ $compact }) => $compact && compactSidebar}
+`;
+
 const MainColumn = styled.section`
   display: flex;
+  grid-column: 2;
   min-width: 0;
   height: 100%;
   flex-direction: column;
@@ -1107,6 +1289,12 @@ const sidebarBottomItems = [
   { label: 'Settings', Icon: SettingsIcon },
 ] as const;
 
+const sidebarDevelopmentItems = [
+  { label: 'My Actors', Icon: DevelopmentIcon },
+  { label: 'Insights', Icon: FilterIcon },
+  { label: 'Messaging', Icon: CommentIcon },
+] as const;
+
 const runTabs: TabData[] = [
   { id: 'runs', title: 'Runs', Icon: PlayIcon, to: '#runs' },
   { id: 'builds', title: 'Builds', Icon: BuildsIcon, to: '#builds' },
@@ -1175,58 +1363,90 @@ function SidebarItem({
   label,
   Icon,
   selected = false,
+  compact = false,
 }: {
   label: string;
   Icon: IconComponent;
   selected?: boolean;
+  compact?: boolean;
 }) {
   return (
-    <NavItem href="#" $selected={selected} onClick={(event) => event.preventDefault()}>
-      <Icon size="16" />
-      <span>{label}</span>
+    <NavItem
+      type="button"
+      $selected={selected}
+      aria-label={label}
+      title={compact ? label : undefined}
+    >
+      <Icon size="16" aria-hidden="true" />
+      <NavItemLabel>{label}</NavItemLabel>
     </NavItem>
   );
 }
 
-function AppSidebar() {
-  return (
-    <Sidebar aria-label="Apify Console navigation">
-      <Account>
-        <UserAvatar name="Caroline Yooni Huh" url="/assets/profile.jpeg" size={32} />
-        <AccountCopy>
-          <AccountName>Caroline Yooni Huh</AccountName>
-          <AccountPlan>Personal</AccountPlan>
-        </AccountCopy>
-        <ChevronDownIcon size="16" />
-      </Account>
+function AppSidebar({ compact, onToggle }: { compact: boolean; onToggle: () => void }) {
+  const [developmentExpanded, setDevelopmentExpanded] = useState(true);
 
-      <SidebarSearchRow>
-        <SearchBox>
-          <SearchIcon size="16" />
-          <span>Search..</span>
-          <Shortcut>⌘⇧K</Shortcut>
-        </SearchBox>
-        <NotificationButton type="button" aria-label="Notifications">
-          <BellIcon size="16" />
-        </NotificationButton>
-      </SidebarSearchRow>
+  return (
+    <Sidebar $compact={compact} aria-label="Apify Console navigation">
+      <SidebarTop>
+        <Account
+          type="button"
+          aria-label="Caroline Yooni Huh, Personal account"
+          title={compact ? 'Caroline Yooni Huh' : undefined}
+        >
+          <UserAvatar name="Caroline Yooni Huh" url="/assets/profile.jpeg" size={32} />
+          <AccountCopy>
+            <AccountName>Caroline Yooni Huh</AccountName>
+            <AccountPlan>Personal</AccountPlan>
+          </AccountCopy>
+          <ChevronDownIcon className="nav-disclosure" size="16" aria-hidden="true" />
+        </Account>
+
+        <SidebarSearchRow>
+          <SearchBox type="button" aria-label="Search" title={compact ? 'Search' : undefined}>
+            <SearchIcon size="16" aria-hidden="true" />
+            <SearchLabel>Search..</SearchLabel>
+            <Shortcut>⌘⇧K</Shortcut>
+          </SearchBox>
+          <NotificationButton type="button" title="Notifications" aria-label="Notifications">
+            <BellIcon size="16" aria-hidden="true" />
+          </NotificationButton>
+        </SidebarSearchRow>
+      </SidebarTop>
+
+      <NavDivider />
 
       <SidebarNav>
-        <NavCluster>
+        <NavSection>
           {sidebarTopItems.map((item) => (
-            <SidebarItem key={item.label} {...item} />
+            <SidebarItem key={item.label} compact={compact} {...item} />
           ))}
-          <SectionLabel>
-            <span>Development</span>
-            <ChevronDownIcon size="16" />
-          </SectionLabel>
-        </NavCluster>
+          <DevelopmentGroup>
+            <SectionLabel
+              type="button"
+              aria-label="Development"
+              aria-expanded={developmentExpanded}
+              title={compact ? 'Development' : undefined}
+              onClick={() => setDevelopmentExpanded((expanded) => !expanded)}
+            >
+              <span>Development</span>
+              <ChevronDownIcon className="nav-disclosure" size="16" aria-hidden="true" />
+            </SectionLabel>
+            {developmentExpanded && (
+              <DevelopmentItems>
+                {sidebarDevelopmentItems.map((item) => (
+                  <SidebarItem key={item.label} compact={compact} {...item} />
+                ))}
+              </DevelopmentItems>
+            )}
+          </DevelopmentGroup>
+        </NavSection>
         <NavSpacer />
-        <NavCluster>
+        <NavSection $bottom>
           {sidebarBottomItems.map((item) => (
-            <SidebarItem key={item.label} {...item} />
+            <SidebarItem key={item.label} compact={compact} {...item} />
           ))}
-        </NavCluster>
+        </NavSection>
       </SidebarNav>
 
       <UsageBox>
@@ -1244,16 +1464,18 @@ function AppSidebar() {
         <ApifyLogo src="/assets/apify-logo.svg" alt="Apify" />
         <FooterActions>
           <IconButton
-            aria-label="Help"
+            aria-label="Help and resources"
             Icon={QuestionMarkIcon}
             size="extraSmall"
             variant={ICON_BUTTON_VARIANTS.BORDERED}
           />
           <IconButton
-            aria-label="Collapse sidebar"
-            Icon={LayoutSidebarIcon}
+            aria-label={compact ? 'Expand sidebar' : 'Collapse sidebar'}
+            title={compact ? 'Expand sidebar' : 'Collapse sidebar'}
+            Icon={compact ? ExpandIcon : LayoutSidebarIcon}
             size="extraSmall"
             variant={ICON_BUTTON_VARIANTS.BORDERED}
+            onClick={onToggle}
           />
         </FooterActions>
       </SidebarFooter>
@@ -1748,6 +1970,7 @@ function PrototypeInner() {
   const [variant, setVariant] = useState<NavigationVariant>('inline');
   const [activeTab, setActiveTab] = useState('run');
   const [flowsEnabled, setFlowsEnabled] = useState(false);
+  const [sidebarCompact, setSidebarCompact] = useState(false);
 
   useEffect(() => {
     const option = Number(new URLSearchParams(window.location.search).get('option'));
@@ -1787,8 +2010,8 @@ function PrototypeInner() {
   };
 
   return (
-    <Shell>
-      <AppSidebar />
+    <Shell $sidebarCompact={sidebarCompact}>
+      <AppSidebar compact={sidebarCompact} onToggle={() => setSidebarCompact((compact) => !compact)} />
       <MainColumn>
         <ActorHeader />
         <ModeNavigation
