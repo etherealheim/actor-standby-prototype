@@ -65,7 +65,7 @@ import {
 
 type Mode = 'run' | 'server';
 type SplitMode = 'input' | 'server';
-type NavigationVariant = 'inline' | 'split' | 'detached' | 'disabled';
+type NavigationVariant = 'inline' | 'split' | 'detached' | 'disabled' | 'inline-v2';
 type OnboardingFlow = 'standby' | 'reshuffle';
 
 const ApifyTokens = createGlobalStyle`
@@ -1418,6 +1418,9 @@ const developerTabs: TabData[] = [
   { id: 'settings', title: 'Settings', Icon: SettingsIcon, to: '#settings' },
 ];
 
+const inlineSourceTab = developerTabs.filter(({ id }) => id === 'source');
+const developerUtilityTabs = developerTabs.filter(({ id }) => id !== 'source');
+
 const developerTabIds = new Set(developerTabs.map(({ id }) => id));
 
 const runModeUnsupportedMessage =
@@ -1425,9 +1428,10 @@ const runModeUnsupportedMessage =
 
 const variantOptions: Array<{ id: NavigationVariant; number: number; label: string }> = [
   { id: 'inline', number: 1, label: 'Inline' },
-  { id: 'split', number: 2, label: 'Dropdown tab' },
-  { id: 'detached', number: 3, label: 'Detached' },
-  { id: 'disabled', number: 4, label: 'Disabled' },
+  { id: 'inline-v2', number: 2, label: 'Inline v2' },
+  { id: 'split', number: 3, label: 'Dropdown tab' },
+  { id: 'detached', number: 4, label: 'Detached' },
+  { id: 'disabled', number: 5, label: 'Disabled' },
 ];
 
 const tabTitles: Record<string, string> = {
@@ -1465,6 +1469,10 @@ function getDefaultTab(variant: NavigationVariant, mode: Mode, splitMode: SplitM
   if (variant === 'split') return splitMode === 'input' ? 'actor-input' : 'endpoints';
   return mode === 'run' ? 'actor-input' : 'endpoints';
 }
+
+const isInlineVariant = (variant: NavigationVariant) => (
+  variant === 'inline' || variant === 'inline-v2'
+);
 
 function SidebarItem({
   label,
@@ -1801,9 +1809,11 @@ function ModeNavigation({
 }) {
   const [staggerMode, setStaggerMode] = useState<Mode>();
   const [staggerSplitMode, setStaggerSplitMode] = useState<SplitMode>();
+  const inlineVariant = isInlineVariant(variant);
+  const inlineSourceEnabled = variant === 'inline-v2' && devMode;
 
   useEffect(() => {
-    if (variant !== 'inline') setStaggerMode(undefined);
+    if (!isInlineVariant(variant)) setStaggerMode(undefined);
     if (variant !== 'split') setStaggerSplitMode(undefined);
   }, [variant]);
 
@@ -1860,6 +1870,14 @@ function ModeNavigation({
 
     return (
       <>
+        {inlineSourceEnabled && (
+          <OverflowVisibleTabs
+            variant="buttoned"
+            tabs={inlineSourceTab}
+            activeTab={activeTab}
+            onSelect={selectTab}
+          />
+        )}
         <FullTabSet $collapseAt={adaptiveCollapseAt}>
           <OperationalTabsTarget data-flow-target="operational-tabs">
             <OverflowVisibleTabs
@@ -1895,7 +1913,7 @@ function ModeNavigation({
             $right
             data-flow-target="developer-tabs"
             variant="buttoned"
-            tabs={developerTabs}
+            tabs={inlineSourceEnabled ? developerUtilityTabs : developerTabs}
             activeTab={activeTab}
             onSelect={selectTab}
           />
@@ -1953,7 +1971,7 @@ function ModeNavigation({
 
   return (
     <TabsBar>
-      {variant === 'inline' ? (
+      {inlineVariant ? (
         <SegmentedModeControl
           mode={mode}
           setMode={selectMode}
@@ -2006,12 +2024,12 @@ function ModeNavigation({
       )}
       {renderTabs(
         tabs,
-        variant === 'inline' ? mode : variant === 'split' ? splitMode : variant,
+        inlineVariant ? mode : variant === 'split' ? splitMode : variant,
         (
-          (variant === 'inline' && staggerMode === mode)
+          (inlineVariant && staggerMode === mode)
           || (variant === 'split' && staggerSplitMode === splitMode)
         ),
-        (variant === 'inline' ? mode === 'run' : splitMode === 'input') ? 1000 : 900,
+        (inlineVariant ? mode === 'run' : splitMode === 'input') ? 1000 : 900,
       )}
     </TabsBar>
   );
@@ -2418,7 +2436,7 @@ function PrototypeInner() {
   useEffect(() => {
     if (!standbyFlowEnabled) return;
 
-    if (variant === 'inline') {
+    if (isInlineVariant(variant)) {
       setMode('server');
       setActiveTab('endpoints');
     } else if (variant === 'split') {
@@ -2464,7 +2482,7 @@ function PrototypeInner() {
 
   const selectTenancy = (nextMultiTenant: boolean) => {
     const serverModeActive = variant === 'disabled'
-      || (variant === 'inline' && mode === 'server')
+      || (isInlineVariant(variant) && mode === 'server')
       || (variant === 'split' && splitMode === 'server');
 
     if (
@@ -2481,7 +2499,7 @@ function PrototypeInner() {
 
   const selectDevMode = (nextDevMode: boolean) => {
     const serverModeActive = variant === 'disabled'
-      || (variant === 'inline' && mode === 'server')
+      || (isInlineVariant(variant) && mode === 'server')
       || (variant === 'split' && splitMode === 'server');
 
     if (!nextDevMode) {
