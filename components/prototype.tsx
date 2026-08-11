@@ -1296,6 +1296,7 @@ const sidebarDevelopmentItems = [
 ] as const;
 
 const runTabs: TabData[] = [
+  { id: 'actor-input', title: 'Input', Icon: InputIcon, to: '#input' },
   { id: 'runs', title: 'Runs', Icon: PlayIcon, to: '#runs' },
   { id: 'builds', title: 'Builds', Icon: BuildsIcon, to: '#builds' },
   { id: 'monitoring', title: 'Monitoring', Icon: MonitoringIcon, to: '#monitoring' },
@@ -1304,10 +1305,10 @@ const runTabs: TabData[] = [
 ];
 
 const serverTabs: TabData[] = [
+  { id: 'endpoints', title: 'Endpoints', Icon: ApiIcon, to: '#endpoints' },
   { id: 'requests', title: 'Requests', Icon: PlayIcon, to: '#requests' },
   { id: 'builds', title: 'Builds', Icon: BuildsIcon, to: '#builds' },
   { id: 'monitoring', title: 'Monitoring', Icon: MonitoringIcon, to: '#monitoring' },
-  { id: 'tasks', title: 'Saved tasks', Icon: TasksIcon, to: '#tasks' },
 ];
 
 const detachedTabs: TabData[] = [
@@ -1319,10 +1320,10 @@ const detachedTabs: TabData[] = [
 
 const disabledTabs: TabData[] = [
   { id: 'standby', title: 'Server mode', Icon: StandbyIcon, to: '#standby' },
-  { id: 'runs', title: 'Runs', Icon: PlayIcon, to: '#runs' },
+  { id: 'endpoints', title: 'Endpoints', Icon: ApiIcon, to: '#endpoints' },
+  { id: 'requests', title: 'Requests', Icon: PlayIcon, to: '#requests' },
   { id: 'builds', title: 'Builds', Icon: BuildsIcon, to: '#builds' },
   { id: 'monitoring', title: 'Monitoring', Icon: MonitoringIcon, to: '#monitoring' },
-  { id: 'tasks', title: 'Saved tasks', Icon: TasksIcon, to: '#tasks' },
 ];
 
 const variantOptions: Array<{ id: NavigationVariant; number: number; label: string }> = [
@@ -1336,7 +1337,9 @@ const tabTitles: Record<string, string> = {
   run: 'Run mode',
   server: 'Server mode',
   input: 'Run mode',
+  'actor-input': 'Input',
   runs: 'Runs',
+  endpoints: 'Endpoints',
   requests: 'Requests',
   builds: 'Builds',
   monitoring: 'Monitoring',
@@ -1350,6 +1353,7 @@ const tabRoutes: Record<string, string> = {
   run: 'runs',
   server: 'standby',
   input: 'input',
+  'actor-input': 'input',
 };
 
 function getDefaultTab(variant: NavigationVariant, mode: Mode, splitMode: SplitMode): string {
