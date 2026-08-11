@@ -1173,6 +1173,11 @@ const FlowToggleThumb = styled.span<{ $active: boolean }>`
   transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
 `;
 
+const TenancyLabel = styled.span`
+  width: 72px;
+  text-align: left;
+`;
+
 const FlowPopoverCard = styled.aside<{ $arrowLeft: number; $placement: 'top' | 'bottom' }>`
   position: fixed;
   z-index: 50;
@@ -1929,11 +1934,15 @@ function VariantSelector({
   onSelect,
   flowsEnabled,
   onToggleFlows,
+  multiTenant,
+  onToggleTenancy,
 }: {
   variant: NavigationVariant;
   onSelect: (variant: NavigationVariant) => void;
   flowsEnabled: boolean;
   onToggleFlows: () => void;
+  multiTenant: boolean;
+  onToggleTenancy: () => void;
 }) {
   return (
     <VariantDock aria-label="Navigation design options">
@@ -1964,6 +1973,20 @@ function VariantSelector({
           <FlowToggleThumb $active={flowsEnabled} />
         </FlowToggleTrack>
       </FlowToggleButton>
+      <DockDivider aria-hidden="true" />
+      <FlowToggleButton
+        type="button"
+        role="switch"
+        $active={multiTenant}
+        aria-checked={multiTenant}
+        aria-label="Multi-tenant mode"
+        onClick={onToggleTenancy}
+      >
+        <TenancyLabel>{multiTenant ? 'Multi-tenant' : 'Single-tenant'}</TenancyLabel>
+        <FlowToggleTrack $active={multiTenant} aria-hidden="true">
+          <FlowToggleThumb $active={multiTenant} />
+        </FlowToggleTrack>
+      </FlowToggleButton>
     </VariantDock>
   );
 }
@@ -1974,6 +1997,7 @@ function PrototypeInner() {
   const [variant, setVariant] = useState<NavigationVariant>('inline');
   const [activeTab, setActiveTab] = useState('run');
   const [flowsEnabled, setFlowsEnabled] = useState(false);
+  const [multiTenant, setMultiTenant] = useState(false);
   const [sidebarCompact, setSidebarCompact] = useState(false);
 
   useEffect(() => {
@@ -2046,6 +2070,8 @@ function PrototypeInner() {
         onSelect={selectVariant}
         flowsEnabled={flowsEnabled}
         onToggleFlows={() => setFlowsEnabled((enabled) => !enabled)}
+        multiTenant={multiTenant}
+        onToggleTenancy={() => setMultiTenant((enabled) => !enabled)}
       />
     </Shell>
   );
