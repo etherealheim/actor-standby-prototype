@@ -1366,7 +1366,11 @@ const createDisabledDeveloperTab = (tab: TabData): TabData => ({
 const applyDeveloperTabAccess = (tabs: TabData[], devMode: boolean): TabData[] => (
   devMode
     ? tabs
-    : tabs.map((tab) => tab.id === 'builds' ? createDisabledDeveloperTab(tab) : tab)
+    : tabs.map((tab) => (
+      tab.id === 'builds' || tab.id === 'tasks'
+        ? createDisabledDeveloperTab(tab)
+        : tab
+    ))
 );
 
 const multiTenantDevServerTabs: TabData[] = [
@@ -2369,7 +2373,7 @@ function PrototypeInner() {
       || (variant === 'split' && splitMode === 'server');
 
     if (!nextDevMode) {
-      if (developerTabIds.has(activeTab) || activeTab === 'builds') {
+      if (developerTabIds.has(activeTab) || activeTab === 'builds' || activeTab === 'tasks') {
         setActiveTab(
           supportsRunMode && !supportsServerMode
             ? 'actor-input'
