@@ -1,0 +1,68 @@
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  min-width: 1024px;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  background: #ffffff;
+  color: #1f2123;
+  font-family: var(--font-sans), sans-serif;
+  font-size: 10px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/*
+ * Keep the cursor stable across composed controls. Apify components often render
+ * icons and labels as nested elements, so the pointer must be owned by both the
+ * interactive root and its rendered contents.
+ */
+:where(
+  button:not(:disabled):not([aria-disabled='true']),
+  a[href],
+  [role='button']:not([aria-disabled='true']),
+  [role='tab']:not([aria-disabled='true']),
+  [role='menuitem']:not([aria-disabled='true'])
+),
+:where(
+  button:not(:disabled):not([aria-disabled='true']),
+  a[href],
+  [role='button']:not([aria-disabled='true']),
+  [role='tab']:not([aria-disabled='true']),
+  [role='menuitem']:not([aria-disabled='true'])
+) * {
+  cursor: pointer !important;
+}
+
+:where(
+  button:disabled,
+  [aria-disabled='true']
+),
+:where(
+  button:disabled,
+  [aria-disabled='true']
+) * {
+  cursor: not-allowed !important;
+}
+
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid #1672eb;
+  outline-offset: 2px;
+}
