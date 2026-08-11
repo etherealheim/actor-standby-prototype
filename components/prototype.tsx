@@ -62,10 +62,13 @@ import {
   UserAvatar,
 } from '@apify/ui-library';
 
+import { ActorInfoView } from './actor-info';
+
 type Mode = 'run' | 'server';
 type SplitMode = 'input' | 'server';
 type NavigationVariant = 'inline' | 'split' | 'detached' | 'disabled' | 'inline-v2';
 type OnboardingFlow = 'standby' | 'reshuffle';
+type PrototypeView = 'prototype' | 'actor-info';
 
 const ApifyTokens = createGlobalStyle`
   :root {
@@ -669,6 +672,63 @@ const Segment = styled.button<{ $active?: boolean; $disabled?: boolean }>`
   &:focus-visible {
     outline: 2px solid ${theme.color.primary.fieldBorderActive};
     outline-offset: 2px;
+  }
+`;
+
+const DedicatedModeTabs = styled.div`
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 4px;
+
+  > span {
+    display: inline-flex;
+  }
+`;
+
+const DedicatedModeTab = styled.button<{ $active?: boolean; $disabled?: boolean }>`
+  position: relative;
+  display: inline-flex;
+  height: 32px;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 4px;
+  padding: 0 8px;
+  border: ${({ $active }) => ($active ? `1px solid ${theme.color.neutral.border}` : '1px solid transparent')};
+  border-radius: 6px;
+  background: ${({ $active }) => ($active ? theme.color.neutral.background : 'transparent')};
+  color: ${({ $active, $disabled }) => ($disabled
+    ? theme.color.neutral.textDisabled
+    : $active ? theme.color.neutral.text : theme.color.neutral.textMuted)};
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+  cursor: ${({ $disabled }) => ($disabled ? 'not-allowed' : 'pointer')};
+
+  &::after {
+    position: absolute;
+    inset: -4px 0;
+    content: '';
+  }
+
+  &:hover {
+    background: ${({ $active, $disabled }) => ($disabled
+      ? $active ? theme.color.neutral.background : 'transparent'
+      : $active ? theme.color.neutral.background : theme.color.neutral.hover)};
+  }
+
+  &:focus-visible {
+    outline: 2px solid ${theme.color.primary.fieldBorderActive};
+    outline-offset: 2px;
+  }
+
+  svg {
+    flex: 0 0 16px;
+    color: ${({ $disabled }) => ($disabled ? theme.color.neutral.iconDisabled : 'currentcolor')};
+  }
+
+  * {
+    cursor: inherit;
   }
 `;
 
@@ -1569,12 +1629,18 @@ function AppSidebar({ compact, onToggle }: { compact: boolean; onToggle: () => v
   );
 }
 
-function ActorHeader() {
+function ActorHeader({ onOpenActorInfo }: { onOpenActorInfo: () => void }) {
   return (
     <Header>
       <TitleRow>
         <TitleGroup>
-          <IconButton aria-label="Go back" Icon={ArrowLeftIcon} size="small" />
+          <IconButton
+            aria-label="View Actor info"
+            title="View Actor info"
+            Icon={ArrowLeftIcon}
+            size="small"
+            onClick={onOpenActorInfo}
+          />
           <ActorIdentity>
             <ActorNameGroup>
               <ActorAvatarFrame>
@@ -1620,7 +1686,7 @@ function ActorHeader() {
           size="small"
           variant="tertiary"
           RightIcon={ExternalLinkIcon}
-          onClick={() => undefined}
+          onClick={onOpenActorInfo}
         >
           View Actor info
         </ActorInfoButton>
@@ -1700,6 +1766,92 @@ function SegmentedModeControl({
       {renderSegment('run')}
       {renderSegment('server')}
     </Segmented>
+  );
+}
+
+function DedicatedModeControl({
+  mode,
+  setMode,
+  supportsRunMode,
+  supportsServerMode,
+}: {
+  mode: Mode;
+  setMode: (mode: Mode) => void;
+  supportsRunMode: boolean;
+  supportsServerMode: boolean;
+}) {
+  const disabledModes: Record<Mode, boolean> = {
+    run: !supportsRunMode,
+    server: !supportsServerMode,
+  };
+
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>) => {
+    const nextMode = event.key === 'ArrowRight' || event.key === 'End'
+      ? 'server'
+      : event.key === 'ArrowLeft' || event.key === 'Home'
+        ? 'run'
+        : undefined;
+
+    if (!nextMode || disabledModes[nextMode]) return;
+
+    event.preventDefault();
+    setMode(nextMode);
+    event.currentTarget
+      .closest('[role="tablist"]')
+      ?.querySelector<HTMLButtonElement>(`[data-mode="${nextMode}"]`)
+      ?.focus();
+  };
+
+  const renderTab = (tabMode: Mode) => {
+    const disabled = disabledModes[tabMode];
+    const label = tabMode === 'run' ? 'Input' : 'Endpoints';
+    const tooltip = tabMode === 'run'
+      ? supportsRunMode
+        ? 'Input configures and starts the Actor in Run mode.'
+        : runModeUnsupportedMessage
+      : supportsServerMode
+        ? 'Endpoints serve requests from the Actor’s Server mode.'
+        : serverModeUnsupportedMessage;
+    const Icon = tabMode === 'run' ? InputIcon : ApiIcon;
+    const tab = (
+      <DedicatedModeTab
+        type="button"
+        role="tab"
+        data-mode={tabMode}
+        data-flow-target={tabMode === 'server' ? 'server-mode' : undefined}
+        aria-selected={mode === tabMode}
+        aria-disabled={disabled}
+        aria-label={disabled ? `${label}. ${tooltip}` : label}
+        tabIndex={disabled ? -1 : mode === tabMode ? 0 : -1}
+        $active={mode === tabMode}
+        $disabled={disabled}
+        onClick={() => {
+          if (!disabled) setMode(tabMode);
+        }}
+        onKeyDown={handleKeyDown}
+      >
+        <Icon size="16" aria-hidden="true" />
+        <span>{label}</span>
+      </DedicatedModeTab>
+    );
+
+    return (
+      <Tooltip
+        content={tooltip}
+        placement="bottom"
+        delayShow={disabled ? 200 : 3000}
+        showInPortal
+      >
+        {tab}
+      </Tooltip>
+    );
+  };
+
+  return (
+    <DedicatedModeTabs role="tablist" aria-label="Actor mode" data-flow-target="mode-switcher">
+      {renderTab('run')}
+      {renderTab('server')}
+    </DedicatedModeTabs>
   );
 }
 
@@ -1789,13 +1941,17 @@ function ModeNavigation({
   }, [variant]);
 
   const selectMode = (nextMode: Mode) => {
+    const landingTab = variant === 'inline-v2' && devMode
+      ? 'source'
+      : nextMode === 'run' ? 'actor-input' : 'endpoints';
+
     if (nextMode === mode) {
-      setActiveTab(nextMode === 'run' ? 'actor-input' : 'endpoints');
+      setActiveTab(landingTab);
       return;
     }
 
     setStaggerMode(nextMode);
-    setActiveTab(nextMode === 'run' ? 'actor-input' : 'endpoints');
+    setActiveTab(landingTab);
     setMode(nextMode);
   };
 
@@ -1892,7 +2048,7 @@ function ModeNavigation({
     );
   };
 
-  if (runOnly) {
+  if (runOnly && variant !== 'disabled') {
     return (
       <TabsBar>
         {renderTabs(runTabs, 'run-only', false, 840)}
@@ -1909,23 +2065,17 @@ function ModeNavigation({
   }
 
   if (variant === 'disabled') {
-    const tabs = mode === 'run' ? runTabs : serverTabs;
+    const tabs = (mode === 'run' ? runTabs : serverTabs).filter(({ id }) => (
+      id !== 'actor-input' && id !== 'endpoints'
+    ));
 
     return (
       <TabsBar>
-        <SegmentedModeControl
+        <DedicatedModeControl
           mode={mode}
           setMode={selectMode}
-          labels={{ run: 'Run mode', server: 'Server mode' }}
-          tooltips={{
-            run: supportsRunMode
-              ? 'Run mode uses Apify Input to configure and start Actor runs.'
-              : runModeUnsupportedMessage,
-            server: supportsServerMode
-              ? 'Server mode serves requests from the Actor’s Standby mode.'
-              : serverModeUnsupportedMessage,
-          }}
-          disabledModes={{ run: !supportsRunMode, server: !supportsServerMode }}
+          supportsRunMode={supportsRunMode}
+          supportsServerMode={supportsServerMode}
         />
         {renderTabs(tabs, `disabled:${mode}`, false, mode === 'run' ? 1000 : 900)}
       </TabsBar>
@@ -2393,15 +2543,27 @@ function PrototypeInner() {
   const [supportsRunMode, setSupportsRunMode] = useState(true);
   const [supportsServerMode, setSupportsServerMode] = useState(true);
   const [sidebarCompact, setSidebarCompact] = useState(false);
+  const [currentView, setCurrentView] = useState<PrototypeView>('prototype');
 
   useEffect(() => {
-    const option = Number(new URLSearchParams(window.location.search).get('option'));
+    const searchParams = new URLSearchParams(window.location.search);
+    const option = Number(searchParams.get('option'));
     const initialVariant = variantOptions.find((item) => item.number === option)?.id;
 
     if (initialVariant) {
       setVariant(initialVariant);
       setActiveTab(getDefaultTab(initialVariant, mode, splitMode));
     }
+
+    setCurrentView(searchParams.get('view') === 'actor-info' ? 'actor-info' : 'prototype');
+
+    const syncViewFromHistory = () => {
+      const params = new URLSearchParams(window.location.search);
+      setCurrentView(params.get('view') === 'actor-info' ? 'actor-info' : 'prototype');
+    };
+
+    window.addEventListener('popstate', syncViewFromHistory);
+    return () => window.removeEventListener('popstate', syncViewFromHistory);
   }, []);
 
   useEffect(() => {
@@ -2545,56 +2707,76 @@ function PrototypeInner() {
     setReshuffleFlowEnabled(false);
   }, []);
 
+  const navigateToView = (nextView: PrototypeView) => {
+    setCurrentView(nextView);
+    dismissFlows();
+
+    const url = new URL(window.location.href);
+    if (nextView === 'actor-info') url.searchParams.set('view', 'actor-info');
+    else url.searchParams.delete('view');
+    window.history.pushState({}, '', url);
+  };
+
   return (
     <Shell $sidebarCompact={sidebarCompact}>
       <AppSidebar compact={sidebarCompact} onToggle={() => setSidebarCompact((compact) => !compact)} />
       <MainColumn>
-        <ActorHeader />
-        <ModeNavigation
-          mode={mode}
-          setMode={setMode}
-          variant={variant}
-          activeTab={activeTab}
-          setActiveTab={setActiveTab}
-          splitMode={splitMode}
-          setSplitMode={setSplitMode}
-          multiTenant={multiTenant}
-          devMode={devMode}
-          supportsRunMode={supportsRunMode}
-          supportsServerMode={supportsServerMode}
-        />
-        <PlaceholderContent
-          variant={variant}
-          mode={mode}
-          setMode={setMode}
-          splitMode={splitMode}
-          activeTab={activeTab}
-          setActiveTab={setActiveTab}
-          supportsRunMode={supportsRunMode}
-          supportsServerMode={supportsServerMode}
-        />
+        {currentView === 'actor-info' ? (
+          <ActorInfoView onBack={() => navigateToView('prototype')} />
+        ) : (
+          <>
+            <ActorHeader onOpenActorInfo={() => navigateToView('actor-info')} />
+            <ModeNavigation
+              mode={mode}
+              setMode={setMode}
+              variant={variant}
+              activeTab={activeTab}
+              setActiveTab={setActiveTab}
+              splitMode={splitMode}
+              setSplitMode={setSplitMode}
+              multiTenant={multiTenant}
+              devMode={devMode}
+              supportsRunMode={supportsRunMode}
+              supportsServerMode={supportsServerMode}
+            />
+            <PlaceholderContent
+              variant={variant}
+              mode={mode}
+              setMode={setMode}
+              splitMode={splitMode}
+              activeTab={activeTab}
+              setActiveTab={setActiveTab}
+              supportsRunMode={supportsRunMode}
+              supportsServerMode={supportsServerMode}
+            />
+          </>
+        )}
       </MainColumn>
-      <FlowOnboarding
-        flow={standbyFlowEnabled ? 'standby' : reshuffleFlowEnabled ? 'reshuffle' : undefined}
-        contextKey={`${variant}:${mode}:${splitMode}:${activeTab}:${devMode}`}
-        onDismiss={dismissFlows}
-      />
-      <VariantSelector
-        variant={variant}
-        onSelect={selectVariant}
-        standbyFlowEnabled={standbyFlowEnabled}
-        setStandbyFlowEnabled={selectStandbyFlow}
-        reshuffleFlowEnabled={reshuffleFlowEnabled}
-        setReshuffleFlowEnabled={selectReshuffleFlow}
-        multiTenant={multiTenant}
-        setMultiTenant={selectTenancy}
-        devMode={devMode}
-        setDevMode={selectDevMode}
-        supportsRunMode={supportsRunMode}
-        setSupportsRunMode={selectRunModeSupport}
-        supportsServerMode={supportsServerMode}
-        setSupportsServerMode={selectServerModeSupport}
-      />
+      {currentView === 'prototype' && (
+        <>
+          <FlowOnboarding
+            flow={standbyFlowEnabled ? 'standby' : reshuffleFlowEnabled ? 'reshuffle' : undefined}
+            contextKey={`${variant}:${mode}:${splitMode}:${activeTab}:${devMode}`}
+            onDismiss={dismissFlows}
+          />
+          <VariantSelector
+            variant={variant}
+            onSelect={selectVariant}
+            standbyFlowEnabled={standbyFlowEnabled}
+            setStandbyFlowEnabled={selectStandbyFlow}
+            reshuffleFlowEnabled={reshuffleFlowEnabled}
+            setReshuffleFlowEnabled={selectReshuffleFlow}
+            multiTenant={multiTenant}
+            setMultiTenant={selectTenancy}
+            devMode={devMode}
+            setDevMode={selectDevMode}
+            supportsRunMode={supportsRunMode}
+            setSupportsRunMode={selectRunModeSupport}
+            supportsServerMode={supportsServerMode}
+            setSupportsServerMode={selectServerModeSupport}
+          />
+        </>
+      )}
     </Shell>
   );
 }
