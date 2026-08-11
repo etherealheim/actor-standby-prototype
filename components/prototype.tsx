@@ -1,7 +1,7 @@
 'use client';
 
 import type { ImgHTMLAttributes, ReactNode } from 'react';
-import { forwardRef, useEffect, useState } from 'react';
+import { forwardRef, useCallback, useEffect, useState } from 'react';
 import styled, { createGlobalStyle, css, keyframes } from 'styled-components';
 
 import {
@@ -66,10 +66,20 @@ import {
 type Mode = 'run' | 'server';
 type SplitMode = 'input' | 'server';
 type NavigationVariant = 'inline' | 'split' | 'detached' | 'disabled';
+type OnboardingFlow = 'standby' | 'reshuffle';
 
 const ApifyTokens = createGlobalStyle`
   :root {
     ${cssColorsVariablesLight}
+  }
+
+  [data-flow-highlight='true'] {
+    position: relative;
+    z-index: 40;
+    border-radius: 6px;
+    outline: 1px solid color-mix(in srgb, ${theme.color.primary.action} 45%, transparent);
+    outline-offset: 2px;
+    box-shadow: 0 0 0 3px color-mix(in srgb, ${theme.color.primary.action} 7%, transparent);
   }
 `;
 
@@ -1295,6 +1305,12 @@ const FlowPopoverFooter = styled.div`
   gap: 12px;
 `;
 
+const FlowPopoverActions = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+`;
+
 const FlowStep = styled.span`
   color: ${theme.color.neutral.textMuted};
   font-size: 11px;
@@ -1355,24 +1371,6 @@ const createDisabledMultiTenantTab = (tab: TabData): TabData => ({
   tabIndex: -1,
 } as TabData);
 
-const createDisabledDeveloperTab = (tab: TabData): TabData => ({
-  ...tab,
-  disabled: true,
-  'aria-disabled': true,
-  'aria-label': `${tab.title} requires Developer view`,
-  tabIndex: -1,
-} as TabData);
-
-const applyDeveloperTabAccess = (tabs: TabData[], devMode: boolean): TabData[] => (
-  devMode
-    ? tabs
-    : tabs.map((tab) => (
-      tab.id === 'builds' || tab.id === 'tasks'
-        ? createDisabledDeveloperTab(tab)
-        : tab
-    ))
-);
-
 const multiTenantDevServerTabs: TabData[] = [
   { id: 'endpoints', title: 'Endpoints', Icon: ApiIcon, to: '#endpoints' },
   { id: 'requests', title: 'Requests', Icon: PlayIcon, to: '#requests' },
@@ -1385,12 +1383,7 @@ const multiTenantServerTabs: TabData[] = [
   { id: 'endpoints', title: 'Endpoints', Icon: ApiIcon, to: '#endpoints' },
   { id: 'requests', title: 'Requests', Icon: PlayIcon, to: '#requests' },
   createDisabledMultiTenantTab({ id: 'builds', title: 'Builds', Icon: BuildsIcon, to: '#builds' }),
-  createDisabledMultiTenantTab({
-    id: 'monitoring',
-    title: 'Monitoring',
-    Icon: MonitoringIcon,
-    to: '#monitoring',
-  }),
+  { id: 'monitoring', title: 'Monitoring', Icon: MonitoringIcon, to: '#monitoring' },
   createDisabledMultiTenantTab({ id: 'tasks', title: 'Saved tasks', Icon: TasksIcon, to: '#tasks' }),
 ];
 
@@ -1599,7 +1592,7 @@ function ActorHeader() {
               </ActorAvatarFrame>
               <ActorTitle>Contact Details Scraper Standby</ActorTitle>
             </ActorNameGroup>
-            <IconButton aria-label="Edit Actor" Icon={EditIcon} size="extraSmall" />
+            <IconButton aria-label="Edit Actor" Icon={EditIcon} size="small" />
             <Badge size="small" variant="primary_blue">Pay per event + usage</Badge>
           </ActorIdentity>
         </TitleGroup>
@@ -1713,7 +1706,7 @@ function SegmentedModeControl({
   };
 
   return (
-    <Segmented role="tablist" aria-label="Actor mode">
+    <Segmented role="tablist" aria-label="Actor mode" data-flow-target="mode-switcher">
       {renderSegment('run')}
       {renderSegment('server')}
     </Segmented>
@@ -1830,11 +1823,9 @@ function ModeNavigation({
     setActiveTab(nextMode === 'input' ? 'actor-input' : 'endpoints');
   };
 
-  const serverTabs = applyDeveloperTabAccess(multiTenant
+  const serverTabs = multiTenant
     ? devMode ? multiTenantDevServerTabs : multiTenantServerTabs
-    : singleTenantServerTabs, devMode);
-  const runModeTabs = applyDeveloperTabAccess(runTabs, devMode);
-  const detachedModeTabs = applyDeveloperTabAccess(detachedTabs, devMode);
+    : singleTenantServerTabs;
 
   const runOnly = supportsRunMode && !supportsServerMode;
   const serverOnly = !supportsRunMode && supportsServerMode;
@@ -1858,7 +1849,7 @@ function ModeNavigation({
 
     return (
       <>
-        <FullTabSet $collapseAt={adaptiveCollapseAt}>
+        <FullTabSet $collapseAt={adaptiveCollapseAt} data-flow-target="operational-tabs">
           <ModeTabs
             key={`${key}:full`}
             $stagger={stagger}
@@ -1873,6 +1864,7 @@ function ModeNavigation({
             key={`${key}:overflow:${hiddenCount}`}
             $minWidth={minWidth}
             $maxWidth={maxWidth}
+            data-flow-target="operational-tabs"
           >
             <OverflowVisibleTabs
               $stagger={stagger}
@@ -1887,6 +1879,7 @@ function ModeNavigation({
         {devMode && (
           <ModeTabs
             $right
+            data-flow-target="developer-tabs"
             variant="buttoned"
             tabs={developerTabs}
             activeTab={activeTab}
@@ -1900,7 +1893,7 @@ function ModeNavigation({
   if (runOnly) {
     return (
       <TabsBar>
-        {renderTabs(runModeTabs, 'run-only', false, 840)}
+        {renderTabs(runTabs, 'run-only', false, 840)}
       </TabsBar>
     );
   }
@@ -1908,7 +1901,7 @@ function ModeNavigation({
   if (variant === 'detached') {
     return (
       <TabsBar>
-        {renderTabs(detachedModeTabs, 'detached', false, 650)}
+        {renderTabs(detachedTabs, 'detached', false, 650)}
       </TabsBar>
     );
   }
@@ -1941,8 +1934,8 @@ function ModeNavigation({
   }
 
   const tabs = variant === 'split'
-    ? splitMode === 'input' ? runModeTabs : serverTabs
-    : mode === 'run' ? runModeTabs : serverTabs;
+    ? splitMode === 'input' ? runTabs : serverTabs
+    : mode === 'run' ? runTabs : serverTabs;
 
   return (
     <TabsBar>
@@ -2080,14 +2073,15 @@ function PlaceholderContent({
 }
 
 function FlowOnboarding({
-  open,
+  flow,
   contextKey,
   onDismiss,
 }: {
-  open: boolean;
+  flow?: OnboardingFlow;
   contextKey: string;
   onDismiss: () => void;
 }) {
+  const [stepIndex, setStepIndex] = useState(0);
   const [position, setPosition] = useState<{
     top: number;
     left: number;
@@ -2095,15 +2089,70 @@ function FlowOnboarding({
     placement: 'top' | 'bottom';
   }>();
 
+  const steps = flow === 'reshuffle'
+    ? [
+      {
+        target: 'mode-switcher',
+        eyebrow: 'Navigation guide',
+        title: 'Switch between modes',
+        body: 'Use this segmented control to switch between Run mode and Server mode. Run mode starts Actor runs from Input, while Server mode keeps the Actor ready to serve requests.',
+      },
+      {
+        target: 'operational-tabs',
+        eyebrow: 'Navigation guide',
+        title: 'Mode-specific tabs',
+        body: 'The tabs on the left contain the workflows for the selected mode. They update when you switch between Run mode and Server mode.',
+      },
+      {
+        target: 'developer-tabs',
+        eyebrow: 'Navigation guide',
+        title: 'Developer tools',
+        body: 'Source, Publishing, and Settings stay grouped on the right when Developer view is enabled.',
+      },
+    ]
+    : [
+      {
+        target: 'server-mode',
+        eyebrow: 'New feature',
+        title: 'Meet Server mode',
+        body: 'Server mode keeps this Actor ready to receive HTTP requests. Use it when your integration needs an immediate response instead of starting a new run each time.',
+      },
+    ];
+  const step = steps[Math.min(stepIndex, steps.length - 1)];
+
   useEffect(() => {
-    if (!open) {
+    setStepIndex(0);
+  }, [flow]);
+
+  useEffect(() => {
+    const clearHighlights = () => {
+      document.querySelectorAll<HTMLElement>('[data-flow-highlight="true"]')
+        .forEach((element) => element.removeAttribute('data-flow-highlight'));
+    };
+
+    clearHighlights();
+    if (!flow) {
       setPosition(undefined);
       return;
     }
 
-    const findTarget = () => document.querySelector<HTMLElement>('[data-flow-target="server-mode"]')
-      ?? [...document.querySelectorAll<HTMLElement>('[role="tab"]')]
-        .find((element) => element.textContent?.trim() === 'Server mode');
+    const findTarget = () => {
+      const candidates = [...document.querySelectorAll<HTMLElement>(`[data-flow-target="${step.target}"]`)];
+      const visibleTarget = candidates.find((element) => {
+        const rect = element.getBoundingClientRect();
+        return rect.width > 0 && rect.height > 0;
+      });
+
+      if (visibleTarget || candidates[0]) return visibleTarget ?? candidates[0];
+      if (step.target === 'server-mode') {
+        return [...document.querySelectorAll<HTMLElement>('[role="tab"]')].find((element) => {
+          const rect = element.getBoundingClientRect();
+          return element.textContent?.trim() === 'Server mode' && rect.width > 0 && rect.height > 0;
+        });
+      }
+
+      return undefined;
+    };
 
     let target = findTarget();
     let resizeObserver: ResizeObserver | undefined;
@@ -2111,6 +2160,9 @@ function FlowOnboarding({
     const updatePosition = () => {
       target = findTarget();
       if (!target) return;
+
+      clearHighlights();
+      target.setAttribute('data-flow-highlight', 'true');
 
       const targetRect = target.getBoundingClientRect();
       const cardWidth = 320;
@@ -2153,18 +2205,22 @@ function FlowOnboarding({
     return () => {
       window.clearTimeout(settleTimer);
       resizeObserver?.disconnect();
+      clearHighlights();
       window.removeEventListener('resize', updatePosition);
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [contextKey, open]);
+  }, [contextKey, flow, onDismiss, step.target]);
 
-  if (!open || !position) return null;
+  if (!flow || !position) return null;
+
+  const finalStep = stepIndex === steps.length - 1;
+  const titleId = `${flow}-flow-title`;
 
   return (
     <FlowPopoverCard
       role="dialog"
       aria-modal="false"
-      aria-labelledby="server-mode-flow-title"
+      aria-labelledby={titleId}
       $arrowLeft={position.arrowLeft}
       $placement={position.placement}
       style={{ top: position.top, left: position.left }}
@@ -2173,21 +2229,31 @@ function FlowOnboarding({
         <div>
           <FlowPopoverEyebrow>
             <SparkleIcon size="12" aria-hidden="true" />
-            First-time guide
+            {step.eyebrow}
           </FlowPopoverEyebrow>
-          <FlowPopoverTitle id="server-mode-flow-title">Meet Server mode</FlowPopoverTitle>
+          <FlowPopoverTitle id={titleId}>{step.title}</FlowPopoverTitle>
         </div>
-        <FlowPopoverClose type="button" aria-label="Dismiss Server mode guide" onClick={onDismiss}>
+        <FlowPopoverClose type="button" aria-label="Dismiss onboarding guide" onClick={onDismiss}>
           <CrossIcon size="16" aria-hidden="true" />
         </FlowPopoverClose>
       </FlowPopoverHeader>
-      <FlowPopoverBody>
-        Server mode keeps this Actor ready to receive HTTP requests. Use it when your integration needs an immediate
-        response instead of starting a new run each time.
-      </FlowPopoverBody>
+      <FlowPopoverBody>{step.body}</FlowPopoverBody>
       <FlowPopoverFooter>
-        <FlowStep>1 of 1</FlowStep>
-        <Button size="small" variant="primary" onClick={onDismiss}>Got it</Button>
+        <FlowStep>{stepIndex + 1} of {steps.length}</FlowStep>
+        <FlowPopoverActions>
+          {stepIndex > 0 && (
+            <Button size="small" variant="tertiary" onClick={() => setStepIndex((index) => index - 1)}>
+              Back
+            </Button>
+          )}
+          <Button
+            size="small"
+            variant="primary"
+            onClick={() => finalStep ? onDismiss() : setStepIndex((index) => index + 1)}
+          >
+            {finalStep ? 'Got it' : 'Next'}
+          </Button>
+        </FlowPopoverActions>
       </FlowPopoverFooter>
     </FlowPopoverCard>
   );
@@ -2215,8 +2281,10 @@ function DockCheckbox({
 function VariantSelector({
   variant,
   onSelect,
-  flowsEnabled,
-  setFlowsEnabled,
+  standbyFlowEnabled,
+  setStandbyFlowEnabled,
+  reshuffleFlowEnabled,
+  setReshuffleFlowEnabled,
   multiTenant,
   setMultiTenant,
   devMode,
@@ -2228,8 +2296,10 @@ function VariantSelector({
 }: {
   variant: NavigationVariant;
   onSelect: (variant: NavigationVariant) => void;
-  flowsEnabled: boolean;
-  setFlowsEnabled: (enabled: boolean) => void;
+  standbyFlowEnabled: boolean;
+  setStandbyFlowEnabled: (enabled: boolean) => void;
+  reshuffleFlowEnabled: boolean;
+  setReshuffleFlowEnabled: (enabled: boolean) => void;
   multiTenant: boolean;
   setMultiTenant: (multiTenant: boolean) => void;
   devMode: boolean;
@@ -2292,7 +2362,18 @@ function VariantSelector({
       </DropdownButton>
       <DockCheckbox id="developer-view" label="Developer" value={devMode} setValue={setDevMode} />
       <DockDivider aria-hidden="true" />
-      <DockCheckbox id="onboarding-flow" label="Flows" value={flowsEnabled} setValue={setFlowsEnabled} />
+      <DockCheckbox
+        id="standby-onboarding-flow"
+        label="Flows Standby"
+        value={standbyFlowEnabled}
+        setValue={setStandbyFlowEnabled}
+      />
+      <DockCheckbox
+        id="reshuffle-onboarding-flow"
+        label="Flows Reshuffle"
+        value={reshuffleFlowEnabled}
+        setValue={setReshuffleFlowEnabled}
+      />
     </VariantDock>
   );
 }
@@ -2302,7 +2383,8 @@ function PrototypeInner() {
   const [splitMode, setSplitMode] = useState<SplitMode>('input');
   const [variant, setVariant] = useState<NavigationVariant>('inline');
   const [activeTab, setActiveTab] = useState('actor-input');
-  const [flowsEnabled, setFlowsEnabled] = useState(false);
+  const [standbyFlowEnabled, setStandbyFlowEnabled] = useState(false);
+  const [reshuffleFlowEnabled, setReshuffleFlowEnabled] = useState(false);
   const [multiTenant, setMultiTenant] = useState(false);
   const [devMode, setDevMode] = useState(false);
   const [supportsRunMode, setSupportsRunMode] = useState(true);
@@ -2320,7 +2402,7 @@ function PrototypeInner() {
   }, []);
 
   useEffect(() => {
-    if (!flowsEnabled) return;
+    if (!standbyFlowEnabled) return;
 
     if (variant === 'inline') {
       setMode('server');
@@ -2334,7 +2416,23 @@ function PrototypeInner() {
     } else {
       setActiveTab('standby');
     }
-  }, [flowsEnabled, variant]);
+  }, [standbyFlowEnabled, variant]);
+
+  useEffect(() => {
+    if (!reshuffleFlowEnabled) return;
+
+    setVariant('inline');
+    setSupportsRunMode(true);
+    setSupportsServerMode(true);
+    setMode('run');
+    setSplitMode('input');
+    setActiveTab('actor-input');
+    setDevMode(true);
+
+    const url = new URL(window.location.href);
+    url.searchParams.set('option', '1');
+    window.history.replaceState({}, '', url);
+  }, [reshuffleFlowEnabled]);
 
   const selectVariant = (nextVariant: NavigationVariant) => {
     setVariant(nextVariant);
@@ -2359,7 +2457,7 @@ function PrototypeInner() {
       nextMultiTenant
       && !devMode
       && serverModeActive
-      && (activeTab === 'builds' || activeTab === 'monitoring' || activeTab === 'tasks')
+      && (activeTab === 'builds' || activeTab === 'tasks')
     ) {
       setActiveTab('endpoints');
     }
@@ -2373,7 +2471,7 @@ function PrototypeInner() {
       || (variant === 'split' && splitMode === 'server');
 
     if (!nextDevMode) {
-      if (developerTabIds.has(activeTab) || activeTab === 'builds' || activeTab === 'tasks') {
+      if (developerTabIds.has(activeTab)) {
         setActiveTab(
           supportsRunMode && !supportsServerMode
             ? 'actor-input'
@@ -2382,7 +2480,7 @@ function PrototypeInner() {
       } else if (
         multiTenant
         && serverModeActive
-        && (activeTab === 'builds' || activeTab === 'monitoring' || activeTab === 'tasks')
+        && (activeTab === 'builds' || activeTab === 'tasks')
       ) {
         setActiveTab('endpoints');
       }
@@ -2408,6 +2506,21 @@ function PrototypeInner() {
     setSplitMode('input');
     setActiveTab('actor-input');
   };
+
+  const selectStandbyFlow = (enabled: boolean) => {
+    setStandbyFlowEnabled(enabled);
+    if (enabled) setReshuffleFlowEnabled(false);
+  };
+
+  const selectReshuffleFlow = (enabled: boolean) => {
+    setReshuffleFlowEnabled(enabled);
+    if (enabled) setStandbyFlowEnabled(false);
+  };
+
+  const dismissFlows = useCallback(() => {
+    setStandbyFlowEnabled(false);
+    setReshuffleFlowEnabled(false);
+  }, []);
 
   return (
     <Shell $sidebarCompact={sidebarCompact}>
@@ -2439,15 +2552,17 @@ function PrototypeInner() {
         />
       </MainColumn>
       <FlowOnboarding
-        open={flowsEnabled}
-        contextKey={`${variant}:${mode}:${splitMode}:${activeTab}`}
-        onDismiss={() => setFlowsEnabled(false)}
+        flow={standbyFlowEnabled ? 'standby' : reshuffleFlowEnabled ? 'reshuffle' : undefined}
+        contextKey={`${variant}:${mode}:${splitMode}:${activeTab}:${devMode}`}
+        onDismiss={dismissFlows}
       />
       <VariantSelector
         variant={variant}
         onSelect={selectVariant}
-        flowsEnabled={flowsEnabled}
-        setFlowsEnabled={setFlowsEnabled}
+        standbyFlowEnabled={standbyFlowEnabled}
+        setStandbyFlowEnabled={selectStandbyFlow}
+        reshuffleFlowEnabled={reshuffleFlowEnabled}
+        setReshuffleFlowEnabled={selectReshuffleFlow}
         multiTenant={multiTenant}
         setMultiTenant={selectTenancy}
         devMode={devMode}
