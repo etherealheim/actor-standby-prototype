@@ -861,12 +861,29 @@ const ResponsiveOverflowTabSet = styled.div<{ $minWidth: number; $maxWidth: numb
   }
 `;
 
-const MoreDropdownTab = styled(ModeDropdownTab)`
+const MoreDropdownTab = styled(ModeDropdownTab)<{
+  $stagger?: boolean;
+  $staggerIndex?: number;
+}>`
   flex: 0 0 auto;
 
   > button {
     color: ${theme.color.neutral.textMuted};
   }
+
+  ${({ $stagger, $staggerIndex = 0 }) =>
+    $stagger &&
+    css`
+      opacity: 0;
+      animation: ${tabsEnter} 260ms cubic-bezier(0.2, 0, 0, 1) forwards;
+      animation-delay: ${$staggerIndex * 48}ms;
+
+      @media (prefers-reduced-motion: reduce) {
+        opacity: 1;
+        animation: none;
+        transform: none;
+      }
+    `}
 `;
 
 const OverflowVisibleTabs = styled(ModeTabs)`
@@ -1859,15 +1876,23 @@ function OverflowTabs({
   tabs,
   activeTab,
   setActiveTab,
+  stagger,
+  staggerIndex,
 }: {
   tabs: TabData[];
   activeTab: string;
   setActiveTab: (tab: string) => void;
+  stagger?: boolean;
+  staggerIndex?: number;
 }) {
   const activeOverflowTab = tabs.some(({ id }) => id === activeTab);
 
   return (
-    <MoreDropdownTab $active={activeOverflowTab}>
+    <MoreDropdownTab
+      $active={activeOverflowTab}
+      $stagger={stagger}
+      $staggerIndex={staggerIndex}
+    >
       <DropdownButton
         buttonLabel={(
           <ModeDropdownLabel>
@@ -2030,7 +2055,13 @@ function ModeNavigation({
                 activeTab={activeTab}
                 onSelect={selectTab}
               />
-              <OverflowTabs tabs={overflowTabs} activeTab={activeTab} setActiveTab={setActiveTab} />
+              <OverflowTabs
+                tabs={overflowTabs}
+                activeTab={activeTab}
+                setActiveTab={setActiveTab}
+                stagger={stagger}
+                staggerIndex={visibleTabs.length}
+              />
             </OperationalTabsTarget>
           </ResponsiveOverflowTabSet>
         ))}
