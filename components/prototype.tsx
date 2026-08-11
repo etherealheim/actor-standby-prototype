@@ -1355,6 +1355,20 @@ const createDisabledMultiTenantTab = (tab: TabData): TabData => ({
   tabIndex: -1,
 } as TabData);
 
+const createDisabledDeveloperTab = (tab: TabData): TabData => ({
+  ...tab,
+  disabled: true,
+  'aria-disabled': true,
+  'aria-label': `${tab.title} requires Developer view`,
+  tabIndex: -1,
+} as TabData);
+
+const applyDeveloperTabAccess = (tabs: TabData[], devMode: boolean): TabData[] => (
+  devMode
+    ? tabs
+    : tabs.map((tab) => tab.id === 'builds' ? createDisabledDeveloperTab(tab) : tab)
+);
+
 const multiTenantDevServerTabs: TabData[] = [
   { id: 'endpoints', title: 'Endpoints', Icon: ApiIcon, to: '#endpoints' },
   { id: 'requests', title: 'Requests', Icon: PlayIcon, to: '#requests' },
@@ -1392,7 +1406,7 @@ const disabledServerModeTab: TabData = {
 
 const developerTabs: TabData[] = [
   { id: 'source', title: 'Source', Icon: CodeIcon, to: '#source' },
-  { id: 'publication', title: 'Publication', Icon: GlobeIcon, to: '#publication' },
+  { id: 'publishing', title: 'Publishing', Icon: GlobeIcon, to: '#publishing' },
   { id: 'settings', title: 'Settings', Icon: SettingsIcon, to: '#settings' },
 ];
 
@@ -1423,7 +1437,7 @@ const tabTitles: Record<string, string> = {
   use: 'Use',
   standby: 'Server mode',
   source: 'Source',
-  publication: 'Publication',
+  publishing: 'Publishing',
   settings: 'Settings',
 };
 
@@ -1433,7 +1447,7 @@ const tabRoutes: Record<string, string> = {
   input: 'input',
   'actor-input': 'input',
   source: 'source',
-  publication: 'publication',
+  publishing: 'publishing',
   settings: 'settings',
 };
 
@@ -1686,7 +1700,7 @@ function SegmentedModeControl({
       <Tooltip
         content={tooltip}
         placement="bottom"
-        delayShow={3000}
+        delayShow={disabled ? 200 : 3000}
         showInPortal
       >
         {segment}
@@ -1812,9 +1826,11 @@ function ModeNavigation({
     setActiveTab(nextMode === 'input' ? 'actor-input' : 'endpoints');
   };
 
-  const serverTabs = multiTenant
+  const serverTabs = applyDeveloperTabAccess(multiTenant
     ? devMode ? multiTenantDevServerTabs : multiTenantServerTabs
-    : singleTenantServerTabs;
+    : singleTenantServerTabs, devMode);
+  const runModeTabs = applyDeveloperTabAccess(runTabs, devMode);
+  const detachedModeTabs = applyDeveloperTabAccess(detachedTabs, devMode);
 
   const runOnly = supportsRunMode && !supportsServerMode;
   const serverOnly = !supportsRunMode && supportsServerMode;
@@ -1880,7 +1896,7 @@ function ModeNavigation({
   if (runOnly) {
     return (
       <TabsBar>
-        {renderTabs(runTabs, 'run-only', false, 840)}
+        {renderTabs(runModeTabs, 'run-only', false, 840)}
       </TabsBar>
     );
   }
@@ -1888,7 +1904,7 @@ function ModeNavigation({
   if (variant === 'detached') {
     return (
       <TabsBar>
-        {renderTabs(detachedTabs, 'detached', false, 650)}
+        {renderTabs(detachedModeTabs, 'detached', false, 650)}
       </TabsBar>
     );
   }
@@ -1921,8 +1937,8 @@ function ModeNavigation({
   }
 
   const tabs = variant === 'split'
-    ? splitMode === 'input' ? runTabs : serverTabs
-    : mode === 'run' ? runTabs : serverTabs;
+    ? splitMode === 'input' ? runModeTabs : serverTabs
+    : mode === 'run' ? runModeTabs : serverTabs;
 
   return (
     <TabsBar>
@@ -2353,7 +2369,7 @@ function PrototypeInner() {
       || (variant === 'split' && splitMode === 'server');
 
     if (!nextDevMode) {
-      if (developerTabIds.has(activeTab)) {
+      if (developerTabIds.has(activeTab) || activeTab === 'builds') {
         setActiveTab(
           supportsRunMode && !supportsServerMode
             ? 'actor-input'
