@@ -1376,8 +1376,8 @@ const tabRoutes: Record<string, string> = {
 function getDefaultTab(variant: NavigationVariant, mode: Mode, splitMode: SplitMode): string {
   if (variant === 'detached') return 'use';
   if (variant === 'disabled') return 'standby';
-  if (variant === 'split') return splitMode;
-  return mode;
+  if (variant === 'split') return splitMode === 'input' ? 'actor-input' : 'endpoints';
+  return mode === 'run' ? 'actor-input' : 'endpoints';
 }
 
 function SidebarItem({
@@ -1650,12 +1650,12 @@ function ModeNavigation({
 
   const selectMode = (nextMode: Mode) => {
     if (nextMode === mode) {
-      setActiveTab(nextMode);
+      setActiveTab(nextMode === 'run' ? 'actor-input' : 'endpoints');
       return;
     }
 
     setStaggerMode(nextMode);
-    setActiveTab(nextMode);
+    setActiveTab(nextMode === 'run' ? 'actor-input' : 'endpoints');
     setMode(nextMode);
   };
 
@@ -1666,13 +1666,13 @@ function ModeNavigation({
 
   const selectSplitMode = (nextMode: SplitMode) => {
     if (nextMode === splitMode) {
-      setActiveTab(nextMode);
+      setActiveTab(nextMode === 'input' ? 'actor-input' : 'endpoints');
       return;
     }
 
     setStaggerSplitMode(nextMode);
     setSplitMode(nextMode);
-    setActiveTab(nextMode);
+    setActiveTab(nextMode === 'input' ? 'actor-input' : 'endpoints');
   };
 
   const serverTabs = multiTenant ? multiTenantServerTabs : singleTenantServerTabs;
@@ -2033,10 +2033,10 @@ function PrototypeInner() {
 
     if (variant === 'inline') {
       setMode('server');
-      setActiveTab('server');
+      setActiveTab('endpoints');
     } else if (variant === 'split') {
       setSplitMode('server');
-      setActiveTab('server');
+      setActiveTab('endpoints');
     } else if (variant === 'detached') {
       setMode('server');
       setActiveTab('use');
