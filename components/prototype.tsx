@@ -1321,10 +1321,33 @@ const singleTenantServerTabs: TabData[] = [
   { id: 'tasks', title: 'Saved tasks', Icon: TasksIcon, to: '#tasks' },
 ];
 
-const multiTenantServerTabs: TabData[] = [
+const createDisabledMultiTenantTab = (tab: TabData): TabData => ({
+  ...tab,
+  disabled: true,
+  'aria-disabled': true,
+  'aria-label': `${tab.title} requires Dev mode in Multi-tenant Server mode`,
+  tabIndex: -1,
+} as TabData);
+
+const multiTenantDevServerTabs: TabData[] = [
   { id: 'endpoints', title: 'Endpoints', Icon: ApiIcon, to: '#endpoints' },
+  { id: 'requests', title: 'Requests', Icon: PlayIcon, to: '#requests' },
+  { id: 'builds', title: 'Builds', Icon: BuildsIcon, to: '#builds' },
   { id: 'monitoring', title: 'Monitoring', Icon: MonitoringIcon, to: '#monitoring' },
   { id: 'tasks', title: 'Saved tasks', Icon: TasksIcon, to: '#tasks' },
+];
+
+const multiTenantServerTabs: TabData[] = [
+  { id: 'endpoints', title: 'Endpoints', Icon: ApiIcon, to: '#endpoints' },
+  { id: 'requests', title: 'Requests', Icon: PlayIcon, to: '#requests' },
+  createDisabledMultiTenantTab({ id: 'builds', title: 'Builds', Icon: BuildsIcon, to: '#builds' }),
+  createDisabledMultiTenantTab({
+    id: 'monitoring',
+    title: 'Monitoring',
+    Icon: MonitoringIcon,
+    to: '#monitoring',
+  }),
+  createDisabledMultiTenantTab({ id: 'tasks', title: 'Saved tasks', Icon: TasksIcon, to: '#tasks' }),
 ];
 
 const detachedTabs: TabData[] = [
@@ -1628,6 +1651,7 @@ function ModeNavigation({
   splitMode,
   setSplitMode,
   multiTenant,
+  devMode,
 }: {
   mode: Mode;
   setMode: (mode: Mode) => void;
@@ -1637,6 +1661,7 @@ function ModeNavigation({
   splitMode: SplitMode;
   setSplitMode: (mode: SplitMode) => void;
   multiTenant: boolean;
+  devMode: boolean;
 }) {
   const [staggerMode, setStaggerMode] = useState<Mode>();
   const [staggerSplitMode, setStaggerSplitMode] = useState<SplitMode>();
@@ -1673,7 +1698,9 @@ function ModeNavigation({
     setActiveTab(nextMode === 'input' ? 'actor-input' : 'endpoints');
   };
 
-  const serverTabs = multiTenant ? multiTenantServerTabs : singleTenantServerTabs;
+  const serverTabs = multiTenant
+    ? devMode ? multiTenantDevServerTabs : multiTenantServerTabs
+    : singleTenantServerTabs;
 
   if (variant === 'detached') {
     return (
@@ -1952,6 +1979,8 @@ function VariantSelector({
   onToggleFlows,
   multiTenant,
   onToggleTenancy,
+  devMode,
+  onToggleDevMode,
 }: {
   variant: NavigationVariant;
   onSelect: (variant: NavigationVariant) => void;
@@ -1959,6 +1988,8 @@ function VariantSelector({
   onToggleFlows: () => void;
   multiTenant: boolean;
   onToggleTenancy: () => void;
+  devMode: boolean;
+  onToggleDevMode: () => void;
 }) {
   return (
     <VariantDock aria-label="Navigation design options">
@@ -2003,6 +2034,20 @@ function VariantSelector({
           <FlowToggleThumb $active={multiTenant} />
         </FlowToggleTrack>
       </FlowToggleButton>
+      <DockDivider aria-hidden="true" />
+      <FlowToggleButton
+        type="button"
+        role="switch"
+        $active={devMode}
+        aria-checked={devMode}
+        aria-label="Dev mode"
+        onClick={onToggleDevMode}
+      >
+        <span>Dev mode</span>
+        <FlowToggleTrack $active={devMode} aria-hidden="true">
+          <FlowToggleThumb $active={devMode} />
+        </FlowToggleTrack>
+      </FlowToggleButton>
     </VariantDock>
   );
 }
@@ -2014,6 +2059,7 @@ function PrototypeInner() {
   const [activeTab, setActiveTab] = useState('run');
   const [flowsEnabled, setFlowsEnabled] = useState(false);
   const [multiTenant, setMultiTenant] = useState(false);
+  const [devMode, setDevMode] = useState(false);
   const [sidebarCompact, setSidebarCompact] = useState(false);
 
   useEffect(() => {
@@ -2060,11 +2106,36 @@ function PrototypeInner() {
         || (variant === 'inline' && mode === 'server')
         || (variant === 'split' && splitMode === 'server');
 
-      if (nextMultiTenant && serverModeActive && (activeTab === 'requests' || activeTab === 'builds')) {
+      if (
+        nextMultiTenant
+        && !devMode
+        && serverModeActive
+        && (activeTab === 'builds' || activeTab === 'monitoring' || activeTab === 'tasks')
+      ) {
         setActiveTab('endpoints');
       }
 
       return nextMultiTenant;
+    });
+  };
+
+  const toggleDevMode = () => {
+    setDevMode((enabled) => {
+      const nextDevMode = !enabled;
+      const serverModeActive = variant === 'disabled'
+        || (variant === 'inline' && mode === 'server')
+        || (variant === 'split' && splitMode === 'server');
+
+      if (
+        !nextDevMode
+        && multiTenant
+        && serverModeActive
+        && (activeTab === 'builds' || activeTab === 'monitoring' || activeTab === 'tasks')
+      ) {
+        setActiveTab('endpoints');
+      }
+
+      return nextDevMode;
     });
   };
 
@@ -2082,6 +2153,7 @@ function PrototypeInner() {
           splitMode={splitMode}
           setSplitMode={setSplitMode}
           multiTenant={multiTenant}
+          devMode={devMode}
         />
         <PlaceholderContent
           variant={variant}
@@ -2104,6 +2176,8 @@ function PrototypeInner() {
         onToggleFlows={() => setFlowsEnabled((enabled) => !enabled)}
         multiTenant={multiTenant}
         onToggleTenancy={toggleTenancy}
+        devMode={devMode}
+        onToggleDevMode={toggleDevMode}
       />
     </Shell>
   );
