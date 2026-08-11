@@ -1323,8 +1323,6 @@ const singleTenantServerTabs: TabData[] = [
 
 const multiTenantServerTabs: TabData[] = [
   { id: 'endpoints', title: 'Endpoints', Icon: ApiIcon, to: '#endpoints' },
-  { id: 'requests', title: 'Requests', Icon: PlayIcon, to: '#requests' },
-  { id: 'builds', title: 'Builds', Icon: BuildsIcon, to: '#builds' },
   { id: 'monitoring', title: 'Monitoring', Icon: MonitoringIcon, to: '#monitoring' },
   { id: 'tasks', title: 'Saved tasks', Icon: TasksIcon, to: '#tasks' },
 ];
@@ -2055,6 +2053,21 @@ function PrototypeInner() {
     window.history.replaceState({}, '', url);
   };
 
+  const toggleTenancy = () => {
+    setMultiTenant((enabled) => {
+      const nextMultiTenant = !enabled;
+      const serverModeActive = variant === 'disabled'
+        || (variant === 'inline' && mode === 'server')
+        || (variant === 'split' && splitMode === 'server');
+
+      if (nextMultiTenant && serverModeActive && (activeTab === 'requests' || activeTab === 'builds')) {
+        setActiveTab('endpoints');
+      }
+
+      return nextMultiTenant;
+    });
+  };
+
   return (
     <Shell $sidebarCompact={sidebarCompact}>
       <AppSidebar compact={sidebarCompact} onToggle={() => setSidebarCompact((compact) => !compact)} />
@@ -2090,7 +2103,7 @@ function PrototypeInner() {
         flowsEnabled={flowsEnabled}
         onToggleFlows={() => setFlowsEnabled((enabled) => !enabled)}
         multiTenant={multiTenant}
-        onToggleTenancy={() => setMultiTenant((enabled) => !enabled)}
+        onToggleTenancy={toggleTenancy}
       />
     </Shell>
   );
