@@ -768,45 +768,50 @@ const ModeTabs = styled(Tabs)<{ $stagger?: boolean; $right?: boolean }>`
     `}
 `;
 
-const FullTabSet = styled.div`
+const FullTabSet = styled.div<{ $collapseAt: number }>`
   display: flex;
   min-width: 0;
   flex: 1;
 
-  @container actor-tabs (max-width: 1040px) {
+  @container actor-tabs (max-width: ${({ $collapseAt }) => `${$collapseAt}px`}) {
     display: none;
   }
 `;
 
-const MediumTabSet = styled.div`
+const MediumTabSet = styled.div<{ $collapseAt: number; $compactAt: number }>`
   display: none;
   min-width: 0;
   flex: 1;
   align-items: center;
   gap: 4px;
 
-  @container actor-tabs (max-width: 1040px) {
+  @container actor-tabs (max-width: ${({ $collapseAt }) => `${$collapseAt}px`}) {
     display: flex;
   }
 
-  @container actor-tabs (max-width: 960px) {
+  @container actor-tabs (max-width: ${({ $compactAt }) => `${$compactAt}px`}) {
     display: none;
   }
 `;
 
-const CompactTabSet = styled.div`
+const CompactTabSet = styled.div<{ $compactAt: number }>`
   display: none;
   min-width: 0;
   flex: 1;
   align-items: center;
   gap: 4px;
 
-  @container actor-tabs (max-width: 960px) {
+  @container actor-tabs (max-width: ${({ $compactAt }) => `${$compactAt}px`}) {
     display: flex;
   }
 `;
 
 const MoreDropdownTab = styled(ModeDropdownTab)`
+  flex: 0 0 auto;
+`;
+
+const OverflowVisibleTabs = styled(ModeTabs)`
+  width: auto;
   flex: 0 0 auto;
 `;
 
@@ -1823,7 +1828,8 @@ function ModeNavigation({
 
   const runOnly = supportsRunMode && !supportsServerMode;
   const serverOnly = !supportsRunMode && supportsServerMode;
-  const renderTabs = (tabs: TabData[], key: string, stagger = false) => {
+  const renderTabs = (tabs: TabData[], key: string, stagger = false, collapseAt = 900) => {
+    const compactAt = Math.max(620, collapseAt - 120);
     const mediumVisibleCount = Math.max(1, tabs.length - 1);
     const compactVisibleCount = tabs.length >= 6 ? 3 : 2;
     const mediumVisibleTabs = tabs.slice(0, mediumVisibleCount);
@@ -1833,7 +1839,7 @@ function ModeNavigation({
 
     return (
       <>
-        <FullTabSet>
+        <FullTabSet $collapseAt={collapseAt}>
           <ModeTabs
             key={`${key}:full`}
             $stagger={stagger}
@@ -1843,8 +1849,8 @@ function ModeNavigation({
             onSelect={selectTab}
           />
         </FullTabSet>
-        <CompactTabSet>
-          <ModeTabs
+        <CompactTabSet $compactAt={compactAt}>
+          <OverflowVisibleTabs
             key={`${key}:compact`}
             $stagger={stagger}
             variant="buttoned"
@@ -1856,8 +1862,8 @@ function ModeNavigation({
             <OverflowTabs tabs={overflowTabs} activeTab={activeTab} setActiveTab={setActiveTab} />
           )}
         </CompactTabSet>
-        <MediumTabSet>
-          <ModeTabs
+        <MediumTabSet $collapseAt={collapseAt} $compactAt={compactAt}>
+          <OverflowVisibleTabs
             key={`${key}:medium`}
             $stagger={stagger}
             variant="buttoned"
@@ -1885,7 +1891,7 @@ function ModeNavigation({
   if (runOnly) {
     return (
       <TabsBar>
-        {renderTabs(runTabs, 'run-only')}
+        {renderTabs(runTabs, 'run-only', false, 840)}
       </TabsBar>
     );
   }
@@ -1893,7 +1899,7 @@ function ModeNavigation({
   if (variant === 'detached') {
     return (
       <TabsBar>
-        {renderTabs(detachedTabs, 'detached')}
+        {renderTabs(detachedTabs, 'detached', false, 650)}
       </TabsBar>
     );
   }
@@ -1920,7 +1926,7 @@ function ModeNavigation({
             <span>Run mode</span>
           </DisabledModeTab>
         </Tooltip>
-        {renderTabs(disabledTabs, 'disabled')}
+        {renderTabs(disabledTabs, 'disabled', false, 920)}
       </TabsBar>
     );
   }
@@ -1989,6 +1995,7 @@ function ModeNavigation({
           (variant === 'inline' && staggerMode === mode)
           || (variant === 'split' && staggerSplitMode === splitMode)
         ),
+        (variant === 'inline' ? mode === 'run' : splitMode === 'input') ? 1000 : 900,
       )}
     </TabsBar>
   );
