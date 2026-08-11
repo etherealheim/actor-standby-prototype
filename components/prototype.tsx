@@ -815,6 +815,14 @@ const OverflowVisibleTabs = styled(ModeTabs)`
   flex: 0 0 auto;
 `;
 
+const OperationalTabsTarget = styled.div`
+  display: flex;
+  width: fit-content;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 4px;
+`;
+
 const DisabledModeTab = styled.button`
   display: inline-flex;
   height: 32px;
@@ -1852,31 +1860,34 @@ function ModeNavigation({
 
     return (
       <>
-        <FullTabSet $collapseAt={adaptiveCollapseAt} data-flow-target="operational-tabs">
-          <ModeTabs
-            key={`${key}:full`}
-            $stagger={stagger}
-            variant="buttoned"
-            tabs={tabs}
-            activeTab={activeTab}
-            onSelect={selectTab}
-          />
+        <FullTabSet $collapseAt={adaptiveCollapseAt}>
+          <OperationalTabsTarget data-flow-target="operational-tabs">
+            <OverflowVisibleTabs
+              key={`${key}:full`}
+              $stagger={stagger}
+              variant="buttoned"
+              tabs={tabs}
+              activeTab={activeTab}
+              onSelect={selectTab}
+            />
+          </OperationalTabsTarget>
         </FullTabSet>
         {overflowStates.map(({ hiddenCount, minWidth, maxWidth, visibleTabs, overflowTabs }) => (
           <ResponsiveOverflowTabSet
             key={`${key}:overflow:${hiddenCount}`}
             $minWidth={minWidth}
             $maxWidth={maxWidth}
-            data-flow-target="operational-tabs"
           >
-            <OverflowVisibleTabs
-              $stagger={stagger}
-              variant="buttoned"
-              tabs={visibleTabs}
-              activeTab={activeTab}
-              onSelect={selectTab}
-            />
-            <OverflowTabs tabs={overflowTabs} activeTab={activeTab} setActiveTab={setActiveTab} />
+            <OperationalTabsTarget data-flow-target="operational-tabs">
+              <OverflowVisibleTabs
+                $stagger={stagger}
+                variant="buttoned"
+                tabs={visibleTabs}
+                activeTab={activeTab}
+                onSelect={selectTab}
+              />
+              <OverflowTabs tabs={overflowTabs} activeTab={activeTab} setActiveTab={setActiveTab} />
+            </OperationalTabsTarget>
           </ResponsiveOverflowTabSet>
         ))}
         {devMode && (
