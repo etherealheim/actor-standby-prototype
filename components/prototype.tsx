@@ -20,6 +20,7 @@ import {
   DevelopmentIcon,
   EditIcon,
   ExpandIcon,
+  ExternalLinkIcon,
   FilterIcon,
   GlobeIcon,
   HomeIcon,
@@ -44,6 +45,7 @@ import {
   ActorAvatar,
   Badge,
   Button,
+  CheckboxPrimitive,
   cssColorsVariablesLight,
   Dropdown,
   DropdownButton,
@@ -572,6 +574,10 @@ const MetaRow = styled.div`
   gap: 8px;
   height: 24px;
   padding-left: 26px;
+`;
+
+const ActorInfoButton = styled(Button)`
+  margin-left: auto;
 `;
 
 const TechnicalTag = styled(Tag)`
@@ -1124,16 +1130,16 @@ const DockDivider = styled.span`
   background: ${theme.color.neutral.separatorSubtle};
 `;
 
-const FlowToggleButton = styled.button<{ $active: boolean }>`
+const ViewCheckboxLabel = styled.label`
   display: inline-flex;
   height: 40px;
   align-items: center;
-  gap: 8px;
-  padding: 0 10px;
+  gap: 6px;
+  padding: 0 8px;
   border: 1px solid transparent;
   border-radius: 4px;
-  background: ${({ $active }) => ($active ? theme.color.neutral.backgroundSubtle : 'transparent')};
-  color: ${({ $active }) => ($active ? theme.color.neutral.text : theme.color.neutral.textSubtle)};
+  background: transparent;
+  color: ${theme.color.neutral.textSubtle};
   font-size: 12px;
   font-weight: 500;
   line-height: 16px;
@@ -1144,42 +1150,19 @@ const FlowToggleButton = styled.button<{ $active: boolean }>`
     color: ${theme.color.neutral.text};
   }
 
-  &:focus-visible {
-    outline: 2px solid ${theme.color.primary.fieldBorderActive};
-    outline-offset: 2px;
+  &:focus-within {
+    background: ${theme.color.neutral.backgroundSubtle};
   }
 `;
 
-const FlowToggleTrack = styled.span<{ $active: boolean }>`
-  position: relative;
-  width: 28px;
-  height: 16px;
-  flex: 0 0 28px;
-  border-radius: 999px;
-  background: ${({ $active }) => ($active ? theme.color.primary.action : theme.color.neutral.border)};
-  transition-property: background-color;
-  transition-duration: 160ms;
-  transition-timing-function: ease-out;
+const ViewCheckbox = styled(CheckboxPrimitive)`
+  flex: 0 0 auto;
 `;
 
-const FlowToggleThumb = styled.span<{ $active: boolean }>`
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: ${theme.color.neutral.background};
-  box-shadow: 0 1px 2px rgb(0 0 0 / 20%);
-  transform: translateX(${({ $active }) => ($active ? '12px' : '0')});
-  transition-property: transform;
-  transition-duration: 180ms;
-  transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
-`;
-
-const TenancyLabel = styled.span`
-  width: 72px;
-  text-align: left;
+const TenancyDropdownLabel = styled.span`
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 `;
 
 const FlowPopoverCard = styled.aside<{ $arrowLeft: number; $placement: 'top' | 'bottom' }>`
@@ -1572,6 +1555,14 @@ function ActorHeader() {
           <UserAvatar name="Lukas Holona" url="/assets/author.png" size={20} />
           <a href="#author" onClick={(event) => event.preventDefault()}>Lukas Holona</a>
         </Author>
+        <ActorInfoButton
+          size="small"
+          variant="tertiary"
+          RightIcon={ExternalLinkIcon}
+          onClick={() => undefined}
+        >
+          View Actor info
+        </ActorInfoButton>
       </MetaRow>
     </Header>
   );
@@ -1582,11 +1573,13 @@ function SegmentedModeControl({
   setMode,
   labels,
   tooltips,
+  disabledModes,
 }: {
   mode: Mode;
   setMode: (mode: Mode) => void;
   labels: { run: string; server: string };
   tooltips?: { run: string; server: string };
+  disabledModes?: Partial<Record<Mode, boolean>>;
 }) {
   const handleKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>) => {
     const nextMode = event.key === 'ArrowRight' || event.key === 'End'
@@ -1595,7 +1588,7 @@ function SegmentedModeControl({
         ? 'run'
         : undefined;
 
-    if (!nextMode) return;
+    if (!nextMode || disabledModes?.[nextMode]) return;
 
     event.preventDefault();
     setMode(nextMode);
@@ -1606,6 +1599,7 @@ function SegmentedModeControl({
   };
 
   const renderSegment = (segmentMode: Mode) => {
+    const disabled = disabledModes?.[segmentMode] ?? false;
     const segment = (
       <Segment
         type="button"
@@ -1613,9 +1607,13 @@ function SegmentedModeControl({
         data-mode={segmentMode}
         data-flow-target={segmentMode === 'server' ? 'server-mode' : undefined}
         aria-selected={mode === segmentMode}
-        tabIndex={mode === segmentMode ? 0 : -1}
+        aria-disabled={disabled}
+        disabled={disabled}
+        tabIndex={disabled ? -1 : mode === segmentMode ? 0 : -1}
         $active={mode === segmentMode}
-        onClick={() => setMode(segmentMode)}
+        onClick={() => {
+          if (!disabled) setMode(segmentMode);
+        }}
         onKeyDown={handleKeyDown}
       >
         {labels[segmentMode]}
@@ -1652,6 +1650,8 @@ function ModeNavigation({
   setSplitMode,
   multiTenant,
   devMode,
+  supportsRunMode,
+  supportsServerMode,
 }: {
   mode: Mode;
   setMode: (mode: Mode) => void;
@@ -1662,6 +1662,8 @@ function ModeNavigation({
   setSplitMode: (mode: SplitMode) => void;
   multiTenant: boolean;
   devMode: boolean;
+  supportsRunMode: boolean;
+  supportsServerMode: boolean;
 }) {
   const [staggerMode, setStaggerMode] = useState<Mode>();
   const [staggerSplitMode, setStaggerSplitMode] = useState<SplitMode>();
@@ -1752,6 +1754,7 @@ function ModeNavigation({
             run: 'Run mode uses Apify Input to configure and start Actor runs.',
             server: 'Server mode serves requests from the Actor’s Standby mode.',
           }}
+          disabledModes={{ run: !supportsRunMode, server: !supportsServerMode }}
         />
       ) : (
         <ModeDropdownTab $active={activeTab === splitMode}>
@@ -1774,10 +1777,18 @@ function ModeNavigation({
             } as React.ComponentProps<typeof DropdownButton>['buttonProps']}
             contentProps={{ side: 'bottom', align: 'start', sideOffset: 4 }}
           >
-            <Dropdown.Item selected={splitMode === 'input'} onSelect={() => selectSplitMode('input')}>
+            <Dropdown.Item
+              disabled={!supportsRunMode}
+              selected={splitMode === 'input'}
+              onSelect={() => selectSplitMode('input')}
+            >
               Run mode
             </Dropdown.Item>
-            <Dropdown.Item selected={splitMode === 'server'} onSelect={() => selectSplitMode('server')}>
+            <Dropdown.Item
+              disabled={!supportsServerMode}
+              selected={splitMode === 'server'}
+              onSelect={() => selectSplitMode('server')}
+            >
               Server mode
             </Dropdown.Item>
           </DropdownButton>
@@ -1805,6 +1816,8 @@ function PlaceholderContent({
   splitMode,
   activeTab,
   setActiveTab,
+  supportsRunMode,
+  supportsServerMode,
 }: {
   variant: NavigationVariant;
   mode: Mode;
@@ -1812,6 +1825,8 @@ function PlaceholderContent({
   splitMode: SplitMode;
   activeTab: string;
   setActiveTab: (tab: string) => void;
+  supportsRunMode: boolean;
+  supportsServerMode: boolean;
 }) {
   const detached = variant === 'detached';
   const modeLabel = variant === 'split'
@@ -1838,6 +1853,7 @@ function PlaceholderContent({
               mode={mode}
               setMode={selectDetachedMode}
               labels={{ run: 'Run mode', server: 'Server mode' }}
+              disabledModes={{ run: !supportsRunMode, server: !supportsServerMode }}
             />
           </DetachedModeRow>
         )}
@@ -1972,24 +1988,51 @@ function FlowOnboarding({
   );
 }
 
+function DockCheckbox({
+  id,
+  label,
+  value,
+  setValue,
+}: {
+  id: string;
+  label: string;
+  value: boolean;
+  setValue: (value: boolean) => void;
+}) {
+  return (
+    <ViewCheckboxLabel htmlFor={id}>
+      <ViewCheckbox id={id} value={value} setValue={setValue} aria-label={label} />
+      <span>{label}</span>
+    </ViewCheckboxLabel>
+  );
+}
+
 function VariantSelector({
   variant,
   onSelect,
   flowsEnabled,
-  onToggleFlows,
+  setFlowsEnabled,
   multiTenant,
-  onToggleTenancy,
+  setMultiTenant,
   devMode,
-  onToggleDevMode,
+  setDevMode,
+  supportsRunMode,
+  setSupportsRunMode,
+  supportsServerMode,
+  setSupportsServerMode,
 }: {
   variant: NavigationVariant;
   onSelect: (variant: NavigationVariant) => void;
   flowsEnabled: boolean;
-  onToggleFlows: () => void;
+  setFlowsEnabled: (enabled: boolean) => void;
   multiTenant: boolean;
-  onToggleTenancy: () => void;
+  setMultiTenant: (multiTenant: boolean) => void;
   devMode: boolean;
-  onToggleDevMode: () => void;
+  setDevMode: (devMode: boolean) => void;
+  supportsRunMode: boolean;
+  setSupportsRunMode: (supported: boolean) => void;
+  supportsServerMode: boolean;
+  setSupportsServerMode: (supported: boolean) => void;
 }) {
   return (
     <VariantDock aria-label="Navigation design options">
@@ -2008,46 +2051,43 @@ function VariantSelector({
         </VariantButton>
       ))}
       <DockDivider aria-hidden="true" />
-      <FlowToggleButton
-        type="button"
-        $active={flowsEnabled}
-        aria-pressed={flowsEnabled}
-        aria-label={`${flowsEnabled ? 'Disable' : 'Enable'} Server mode onboarding flow`}
-        onClick={onToggleFlows}
+      <DockCheckbox
+        id="supports-run-mode"
+        label="Run support"
+        value={supportsRunMode}
+        setValue={setSupportsRunMode}
+      />
+      <DockCheckbox
+        id="supports-server-mode"
+        label="Server support"
+        value={supportsServerMode}
+        setValue={setSupportsServerMode}
+      />
+      <DropdownButton
+        buttonLabel={(
+          <TenancyDropdownLabel>
+            <span>{multiTenant ? 'Multi-tenant' : 'Single-tenant'}</span>
+            <ChevronDownIcon size="16" aria-hidden="true" />
+          </TenancyDropdownLabel>
+        )}
+        width="128px"
+        buttonProps={{
+          size: 'medium',
+          variant: 'tertiary',
+          'aria-label': `Tenancy: ${multiTenant ? 'Multi-tenant' : 'Single-tenant'}`,
+        } as React.ComponentProps<typeof DropdownButton>['buttonProps']}
+        contentProps={{ side: 'top', align: 'end', sideOffset: 4 }}
       >
-        <span>Flows</span>
-        <FlowToggleTrack $active={flowsEnabled} aria-hidden="true">
-          <FlowToggleThumb $active={flowsEnabled} />
-        </FlowToggleTrack>
-      </FlowToggleButton>
+        <Dropdown.Item selected={!multiTenant} onSelect={() => setMultiTenant(false)}>
+          Single-tenant
+        </Dropdown.Item>
+        <Dropdown.Item selected={multiTenant} onSelect={() => setMultiTenant(true)}>
+          Multi-tenant
+        </Dropdown.Item>
+      </DropdownButton>
+      <DockCheckbox id="developer-view" label="Developer" value={devMode} setValue={setDevMode} />
       <DockDivider aria-hidden="true" />
-      <FlowToggleButton
-        type="button"
-        role="switch"
-        $active={multiTenant}
-        aria-checked={multiTenant}
-        aria-label="Multi-tenant mode"
-        onClick={onToggleTenancy}
-      >
-        <TenancyLabel>{multiTenant ? 'Multi-tenant' : 'Single-tenant'}</TenancyLabel>
-        <FlowToggleTrack $active={multiTenant} aria-hidden="true">
-          <FlowToggleThumb $active={multiTenant} />
-        </FlowToggleTrack>
-      </FlowToggleButton>
-      <DockDivider aria-hidden="true" />
-      <FlowToggleButton
-        type="button"
-        role="switch"
-        $active={devMode}
-        aria-checked={devMode}
-        aria-label="Dev mode"
-        onClick={onToggleDevMode}
-      >
-        <span>Dev mode</span>
-        <FlowToggleTrack $active={devMode} aria-hidden="true">
-          <FlowToggleThumb $active={devMode} />
-        </FlowToggleTrack>
-      </FlowToggleButton>
+      <DockCheckbox id="onboarding-flow" label="Flows" value={flowsEnabled} setValue={setFlowsEnabled} />
     </VariantDock>
   );
 }
@@ -2060,6 +2100,8 @@ function PrototypeInner() {
   const [flowsEnabled, setFlowsEnabled] = useState(false);
   const [multiTenant, setMultiTenant] = useState(false);
   const [devMode, setDevMode] = useState(false);
+  const [supportsRunMode, setSupportsRunMode] = useState(true);
+  const [supportsServerMode, setSupportsServerMode] = useState(true);
   const [sidebarCompact, setSidebarCompact] = useState(false);
 
   useEffect(() => {
@@ -2099,44 +2141,70 @@ function PrototypeInner() {
     window.history.replaceState({}, '', url);
   };
 
-  const toggleTenancy = () => {
-    setMultiTenant((enabled) => {
-      const nextMultiTenant = !enabled;
-      const serverModeActive = variant === 'disabled'
-        || (variant === 'inline' && mode === 'server')
-        || (variant === 'split' && splitMode === 'server');
+  const selectTenancy = (nextMultiTenant: boolean) => {
+    const serverModeActive = variant === 'disabled'
+      || (variant === 'inline' && mode === 'server')
+      || (variant === 'split' && splitMode === 'server');
 
-      if (
-        nextMultiTenant
-        && !devMode
-        && serverModeActive
-        && (activeTab === 'builds' || activeTab === 'monitoring' || activeTab === 'tasks')
-      ) {
-        setActiveTab('endpoints');
-      }
+    if (
+      nextMultiTenant
+      && !devMode
+      && serverModeActive
+      && (activeTab === 'builds' || activeTab === 'monitoring' || activeTab === 'tasks')
+    ) {
+      setActiveTab('endpoints');
+    }
 
-      return nextMultiTenant;
-    });
+    setMultiTenant(nextMultiTenant);
   };
 
-  const toggleDevMode = () => {
-    setDevMode((enabled) => {
-      const nextDevMode = !enabled;
-      const serverModeActive = variant === 'disabled'
-        || (variant === 'inline' && mode === 'server')
-        || (variant === 'split' && splitMode === 'server');
+  const selectDevMode = (nextDevMode: boolean) => {
+    const serverModeActive = variant === 'disabled'
+      || (variant === 'inline' && mode === 'server')
+      || (variant === 'split' && splitMode === 'server');
 
-      if (
-        !nextDevMode
-        && multiTenant
-        && serverModeActive
-        && (activeTab === 'builds' || activeTab === 'monitoring' || activeTab === 'tasks')
-      ) {
-        setActiveTab('endpoints');
-      }
+    if (
+      !nextDevMode
+      && multiTenant
+      && serverModeActive
+      && (activeTab === 'builds' || activeTab === 'monitoring' || activeTab === 'tasks')
+    ) {
+      setActiveTab('endpoints');
+    }
 
-      return nextDevMode;
-    });
+    setDevMode(nextDevMode);
+  };
+
+  const selectRunModeSupport = (supported: boolean) => {
+    setSupportsRunMode(supported);
+    if (supported || !supportsServerMode) return;
+
+    if (variant === 'inline' && mode === 'run') {
+      setMode('server');
+      setActiveTab('endpoints');
+    } else if (variant === 'split' && splitMode === 'input') {
+      setSplitMode('server');
+      setActiveTab('endpoints');
+    } else if (variant === 'detached' && mode === 'run') {
+      setMode('server');
+      setActiveTab('use');
+    }
+  };
+
+  const selectServerModeSupport = (supported: boolean) => {
+    setSupportsServerMode(supported);
+    if (supported || !supportsRunMode) return;
+
+    if (variant === 'inline' && mode === 'server') {
+      setMode('run');
+      setActiveTab('actor-input');
+    } else if (variant === 'split' && splitMode === 'server') {
+      setSplitMode('input');
+      setActiveTab('actor-input');
+    } else if (variant === 'detached' && mode === 'server') {
+      setMode('run');
+      setActiveTab('use');
+    }
   };
 
   return (
@@ -2154,6 +2222,8 @@ function PrototypeInner() {
           setSplitMode={setSplitMode}
           multiTenant={multiTenant}
           devMode={devMode}
+          supportsRunMode={supportsRunMode}
+          supportsServerMode={supportsServerMode}
         />
         <PlaceholderContent
           variant={variant}
@@ -2162,6 +2232,8 @@ function PrototypeInner() {
           splitMode={splitMode}
           activeTab={activeTab}
           setActiveTab={setActiveTab}
+          supportsRunMode={supportsRunMode}
+          supportsServerMode={supportsServerMode}
         />
       </MainColumn>
       <FlowOnboarding
@@ -2173,11 +2245,15 @@ function PrototypeInner() {
         variant={variant}
         onSelect={selectVariant}
         flowsEnabled={flowsEnabled}
-        onToggleFlows={() => setFlowsEnabled((enabled) => !enabled)}
+        setFlowsEnabled={setFlowsEnabled}
         multiTenant={multiTenant}
-        onToggleTenancy={toggleTenancy}
+        setMultiTenant={selectTenancy}
         devMode={devMode}
-        onToggleDevMode={toggleDevMode}
+        setDevMode={selectDevMode}
+        supportsRunMode={supportsRunMode}
+        setSupportsRunMode={selectRunModeSupport}
+        supportsServerMode={supportsServerMode}
+        setSupportsServerMode={selectServerModeSupport}
       />
     </Shell>
   );
