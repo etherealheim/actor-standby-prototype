@@ -607,6 +607,8 @@ const Author = styled.div`
 `;
 
 const TabsBar = styled.div<{ $compact?: boolean }>`
+  container-name: actor-tabs;
+  container-type: inline-size;
   display: flex;
   flex: 0 0 ${({ $compact }) => ($compact ? '40px' : '56px')};
   align-items: center;
@@ -634,18 +636,20 @@ const Segmented = styled.div`
   }
 `;
 
-const Segment = styled.button<{ $active?: boolean }>`
+const Segment = styled.button<{ $active?: boolean; $disabled?: boolean }>`
   position: relative;
   height: 26px;
   padding: 3px 8px;
   border: ${({ $active }) => ($active ? `1px solid ${theme.color.neutral.border}` : '1px solid transparent')};
   border-radius: 4px;
   background: ${({ $active }) => ($active ? theme.color.neutral.background : 'transparent')};
-  color: ${({ $active }) => ($active ? theme.color.neutral.text : theme.color.neutral.textSubtle)};
+  color: ${({ $active, $disabled }) => ($disabled
+    ? theme.color.neutral.textDisabled
+    : $active ? theme.color.neutral.text : theme.color.neutral.textSubtle)};
   font-size: 12px;
   font-weight: 500;
   line-height: 16px;
-  cursor: pointer;
+  cursor: ${({ $disabled }) => ($disabled ? 'not-allowed' : 'pointer')};
 
   &::after {
     position: absolute;
@@ -710,13 +714,15 @@ const tabsEnter = keyframes`
   }
 `;
 
-const ModeTabs = styled(Tabs)<{ $stagger?: boolean }>`
+const ModeTabs = styled(Tabs)<{ $stagger?: boolean; $right?: boolean }>`
   min-width: 0;
-  flex: 1;
+  width: ${({ $right }) => ($right ? 'auto' : '100%')};
+  flex: ${({ $right }) => ($right ? '0 0 auto' : '1')};
   height: 40px;
 
   [role='tablist'] {
     align-items: center;
+    justify-content: ${({ $right }) => ($right ? 'flex-end' : 'flex-start')};
   }
 
   [role='tab'],
@@ -760,6 +766,48 @@ const ModeTabs = styled(Tabs)<{ $stagger?: boolean }>`
         }
       }
     `}
+`;
+
+const FullTabSet = styled.div`
+  display: flex;
+  min-width: 0;
+  flex: 1;
+
+  @container actor-tabs (max-width: 1040px) {
+    display: none;
+  }
+`;
+
+const MediumTabSet = styled.div`
+  display: none;
+  min-width: 0;
+  flex: 1;
+  align-items: center;
+  gap: 4px;
+
+  @container actor-tabs (max-width: 1040px) {
+    display: flex;
+  }
+
+  @container actor-tabs (max-width: 960px) {
+    display: none;
+  }
+`;
+
+const CompactTabSet = styled.div`
+  display: none;
+  min-width: 0;
+  flex: 1;
+  align-items: center;
+  gap: 4px;
+
+  @container actor-tabs (max-width: 960px) {
+    display: flex;
+  }
+`;
+
+const MoreDropdownTab = styled(ModeDropdownTab)`
+  flex: 0 0 auto;
 `;
 
 const DisabledModeTab = styled.button`
@@ -1347,6 +1395,17 @@ const disabledServerModeTab: TabData = {
   to: '#standby',
 };
 
+const developerTabs: TabData[] = [
+  { id: 'source', title: 'Source', Icon: CodeIcon, to: '#source' },
+  { id: 'publication', title: 'Publication', Icon: GlobeIcon, to: '#publication' },
+  { id: 'settings', title: 'Settings', Icon: SettingsIcon, to: '#settings' },
+];
+
+const developerTabIds = new Set(developerTabs.map(({ id }) => id));
+
+const runModeUnsupportedMessage =
+  'This Actor doesn’t support Run mode. Run mode lets you configure Input and start the Actor as a run.';
+
 const variantOptions: Array<{ id: NavigationVariant; number: number; label: string }> = [
   { id: 'inline', number: 1, label: 'Inline' },
   { id: 'split', number: 2, label: 'Dropdown tab' },
@@ -1368,6 +1427,9 @@ const tabTitles: Record<string, string> = {
   tasks: 'Saved tasks',
   use: 'Use',
   standby: 'Server mode',
+  source: 'Source',
+  publication: 'Publication',
+  settings: 'Settings',
 };
 
 const tabRoutes: Record<string, string> = {
@@ -1375,6 +1437,9 @@ const tabRoutes: Record<string, string> = {
   server: 'standby',
   input: 'input',
   'actor-input': 'input',
+  source: 'source',
+  publication: 'publication',
+  settings: 'settings',
 };
 
 function getDefaultTab(variant: NavigationVariant, mode: Mode, splitMode: SplitMode): string {
@@ -1600,6 +1665,7 @@ function SegmentedModeControl({
 
   const renderSegment = (segmentMode: Mode) => {
     const disabled = disabledModes?.[segmentMode] ?? false;
+    const tooltip = tooltips?.[segmentMode];
     const segment = (
       <Segment
         type="button"
@@ -1608,9 +1674,10 @@ function SegmentedModeControl({
         data-flow-target={segmentMode === 'server' ? 'server-mode' : undefined}
         aria-selected={mode === segmentMode}
         aria-disabled={disabled}
-        disabled={disabled}
+        aria-label={disabled && tooltip ? `${labels[segmentMode]}. ${tooltip}` : labels[segmentMode]}
         tabIndex={disabled ? -1 : mode === segmentMode ? 0 : -1}
         $active={mode === segmentMode}
+        $disabled={disabled}
         onClick={() => {
           if (!disabled) setMode(segmentMode);
         }}
@@ -1620,9 +1687,9 @@ function SegmentedModeControl({
       </Segment>
     );
 
-    return tooltips ? (
+    return tooltip ? (
       <Tooltip
-        content={tooltips[segmentMode]}
+        content={tooltip}
         placement="bottom"
         delayShow={3000}
         showInPortal
@@ -1637,6 +1704,56 @@ function SegmentedModeControl({
       {renderSegment('run')}
       {renderSegment('server')}
     </Segmented>
+  );
+}
+
+function OverflowTabs({
+  tabs,
+  activeTab,
+  setActiveTab,
+}: {
+  tabs: TabData[];
+  activeTab: string;
+  setActiveTab: (tab: string) => void;
+}) {
+  const activeOverflowTab = tabs.some(({ id }) => id === activeTab);
+
+  return (
+    <MoreDropdownTab $active={activeOverflowTab}>
+      <DropdownButton
+        buttonLabel={(
+          <ModeDropdownLabel>
+            <span>More</span>
+            <ChevronDownIcon size="16" aria-hidden="true" />
+          </ModeDropdownLabel>
+        )}
+        width="176px"
+        buttonProps={{
+          size: 'medium',
+          variant: 'tertiary',
+          role: 'tab',
+          'aria-selected': activeOverflowTab,
+          'aria-label': 'More Actor tabs',
+        } as React.ComponentProps<typeof DropdownButton>['buttonProps']}
+        contentProps={{ side: 'bottom', align: 'end', sideOffset: 4 }}
+      >
+        {tabs.map((tab) => {
+          const Icon = tab.Icon;
+
+          return (
+            <Dropdown.Item
+              key={tab.id}
+              disabled={tab.disabled}
+              selected={tab.id === activeTab}
+              icon={Icon ? <Icon size="16" aria-hidden="true" /> : undefined}
+              onSelect={() => setActiveTab(tab.id)}
+            >
+              {typeof tab.title === 'string' ? tab.title : tab.id}
+            </Dropdown.Item>
+          );
+        })}
+      </DropdownButton>
+    </MoreDropdownTab>
   );
 }
 
@@ -1704,10 +1821,79 @@ function ModeNavigation({
     ? devMode ? multiTenantDevServerTabs : multiTenantServerTabs
     : singleTenantServerTabs;
 
+  const runOnly = supportsRunMode && !supportsServerMode;
+  const serverOnly = !supportsRunMode && supportsServerMode;
+  const renderTabs = (tabs: TabData[], key: string, stagger = false) => {
+    const mediumVisibleCount = Math.max(1, tabs.length - 1);
+    const compactVisibleCount = tabs.length >= 6 ? 3 : 2;
+    const mediumVisibleTabs = tabs.slice(0, mediumVisibleCount);
+    const mediumOverflowTabs = tabs.slice(mediumVisibleCount);
+    const visibleTabs = tabs.slice(0, compactVisibleCount);
+    const overflowTabs = tabs.slice(compactVisibleCount);
+
+    return (
+      <>
+        <FullTabSet>
+          <ModeTabs
+            key={`${key}:full`}
+            $stagger={stagger}
+            variant="buttoned"
+            tabs={tabs}
+            activeTab={activeTab}
+            onSelect={selectTab}
+          />
+        </FullTabSet>
+        <CompactTabSet>
+          <ModeTabs
+            key={`${key}:compact`}
+            $stagger={stagger}
+            variant="buttoned"
+            tabs={visibleTabs}
+            activeTab={activeTab}
+            onSelect={selectTab}
+          />
+          {overflowTabs.length > 0 && (
+            <OverflowTabs tabs={overflowTabs} activeTab={activeTab} setActiveTab={setActiveTab} />
+          )}
+        </CompactTabSet>
+        <MediumTabSet>
+          <ModeTabs
+            key={`${key}:medium`}
+            $stagger={stagger}
+            variant="buttoned"
+            tabs={mediumVisibleTabs}
+            activeTab={activeTab}
+            onSelect={selectTab}
+          />
+          {mediumOverflowTabs.length > 0 && (
+            <OverflowTabs tabs={mediumOverflowTabs} activeTab={activeTab} setActiveTab={setActiveTab} />
+          )}
+        </MediumTabSet>
+        {devMode && (
+          <ModeTabs
+            $right
+            variant="buttoned"
+            tabs={developerTabs}
+            activeTab={activeTab}
+            onSelect={selectTab}
+          />
+        )}
+      </>
+    );
+  };
+
+  if (runOnly) {
+    return (
+      <TabsBar>
+        {renderTabs(runTabs, 'run-only')}
+      </TabsBar>
+    );
+  }
+
   if (variant === 'detached') {
     return (
-      <TabsBar $compact>
-        <ModeTabs variant="buttoned" tabs={detachedTabs} activeTab={activeTab} onSelect={selectTab} />
+      <TabsBar>
+        {renderTabs(detachedTabs, 'detached')}
       </TabsBar>
     );
   }
@@ -1718,7 +1904,7 @@ function ModeNavigation({
     return (
       <TabsBar>
         <Tooltip
-          content="Run mode is unavailable because Input wasn’t defined in the Actor schema."
+          content={runModeUnsupportedMessage}
           placement="bottom"
           delayShow={200}
           showInPortal
@@ -1728,13 +1914,13 @@ function ModeNavigation({
             role="tab"
             aria-selected="false"
             aria-disabled="true"
-            aria-label="Run mode is unavailable because Input wasn’t defined in the Actor schema"
+            aria-label={`Run mode. ${runModeUnsupportedMessage}`}
           >
             <InputIcon size="16" aria-hidden="true" />
             <span>Run mode</span>
           </DisabledModeTab>
         </Tooltip>
-        <ModeTabs variant="buttoned" tabs={disabledTabs} activeTab={activeTab} onSelect={selectTab} />
+        {renderTabs(disabledTabs, 'disabled')}
       </TabsBar>
     );
   }
@@ -1751,7 +1937,9 @@ function ModeNavigation({
           setMode={selectMode}
           labels={{ run: 'Run mode', server: 'Server mode' }}
           tooltips={{
-            run: 'Run mode uses Apify Input to configure and start Actor runs.',
+            run: serverOnly
+              ? runModeUnsupportedMessage
+              : 'Run mode uses Apify Input to configure and start Actor runs.',
             server: 'Server mode serves requests from the Actor’s Standby mode.',
           }}
           disabledModes={{ run: !supportsRunMode, server: !supportsServerMode }}
@@ -1794,17 +1982,14 @@ function ModeNavigation({
           </DropdownButton>
         </ModeDropdownTab>
       )}
-      <ModeTabs
-        key={variant === 'inline' ? mode : variant === 'split' ? splitMode : variant}
-        $stagger={
+      {renderTabs(
+        tabs,
+        variant === 'inline' ? mode : variant === 'split' ? splitMode : variant,
+        (
           (variant === 'inline' && staggerMode === mode)
           || (variant === 'split' && staggerSplitMode === splitMode)
-        }
-        variant="buttoned"
-        tabs={tabs}
-        activeTab={activeTab}
-        onSelect={selectTab}
-      />
+        ),
+      )}
     </TabsBar>
   );
 }
@@ -1853,6 +2038,10 @@ function PlaceholderContent({
               mode={mode}
               setMode={selectDetachedMode}
               labels={{ run: 'Run mode', server: 'Server mode' }}
+              tooltips={!supportsRunMode ? {
+                run: runModeUnsupportedMessage,
+                server: 'Server mode serves requests from the Actor’s Standby mode.',
+              } : undefined}
               disabledModes={{ run: !supportsRunMode, server: !supportsServerMode }}
             />
           </DetachedModeRow>
@@ -2096,7 +2285,7 @@ function PrototypeInner() {
   const [mode, setMode] = useState<Mode>('run');
   const [splitMode, setSplitMode] = useState<SplitMode>('input');
   const [variant, setVariant] = useState<NavigationVariant>('inline');
-  const [activeTab, setActiveTab] = useState('run');
+  const [activeTab, setActiveTab] = useState('actor-input');
   const [flowsEnabled, setFlowsEnabled] = useState(false);
   const [multiTenant, setMultiTenant] = useState(false);
   const [devMode, setDevMode] = useState(false);
@@ -2133,7 +2322,11 @@ function PrototypeInner() {
 
   const selectVariant = (nextVariant: NavigationVariant) => {
     setVariant(nextVariant);
-    setActiveTab(getDefaultTab(nextVariant, mode, splitMode));
+    setActiveTab(
+      supportsRunMode && !supportsServerMode
+        ? 'actor-input'
+        : getDefaultTab(nextVariant, mode, splitMode),
+    );
 
     const url = new URL(window.location.href);
     const option = variantOptions.find((item) => item.id === nextVariant);
@@ -2163,13 +2356,20 @@ function PrototypeInner() {
       || (variant === 'inline' && mode === 'server')
       || (variant === 'split' && splitMode === 'server');
 
-    if (
-      !nextDevMode
-      && multiTenant
-      && serverModeActive
-      && (activeTab === 'builds' || activeTab === 'monitoring' || activeTab === 'tasks')
-    ) {
-      setActiveTab('endpoints');
+    if (!nextDevMode) {
+      if (developerTabIds.has(activeTab)) {
+        setActiveTab(
+          supportsRunMode && !supportsServerMode
+            ? 'actor-input'
+            : getDefaultTab(variant, mode, splitMode),
+        );
+      } else if (
+        multiTenant
+        && serverModeActive
+        && (activeTab === 'builds' || activeTab === 'monitoring' || activeTab === 'tasks')
+      ) {
+        setActiveTab('endpoints');
+      }
     }
 
     setDevMode(nextDevMode);
@@ -2179,32 +2379,18 @@ function PrototypeInner() {
     setSupportsRunMode(supported);
     if (supported || !supportsServerMode) return;
 
-    if (variant === 'inline' && mode === 'run') {
-      setMode('server');
-      setActiveTab('endpoints');
-    } else if (variant === 'split' && splitMode === 'input') {
-      setSplitMode('server');
-      setActiveTab('endpoints');
-    } else if (variant === 'detached' && mode === 'run') {
-      setMode('server');
-      setActiveTab('use');
-    }
+    setMode('server');
+    setSplitMode('server');
+    setActiveTab(variant === 'detached' ? 'use' : 'endpoints');
   };
 
   const selectServerModeSupport = (supported: boolean) => {
     setSupportsServerMode(supported);
     if (supported || !supportsRunMode) return;
 
-    if (variant === 'inline' && mode === 'server') {
-      setMode('run');
-      setActiveTab('actor-input');
-    } else if (variant === 'split' && splitMode === 'server') {
-      setSplitMode('input');
-      setActiveTab('actor-input');
-    } else if (variant === 'detached' && mode === 'server') {
-      setMode('run');
-      setActiveTab('use');
-    }
+    setMode('run');
+    setSplitMode('input');
+    setActiveTab('actor-input');
   };
 
   return (
