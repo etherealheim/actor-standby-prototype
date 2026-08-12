@@ -1,7 +1,7 @@
 'use client';
 
 import type { ImgHTMLAttributes, ReactNode } from 'react';
-import { forwardRef, useCallback, useEffect, useState } from 'react';
+import { forwardRef, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import styled, { createGlobalStyle, css, keyframes } from 'styled-components';
 
 import {
@@ -623,9 +623,10 @@ const TabsBar = styled.div<{ $compact?: boolean }>`
   container-type: inline-size;
   display: flex;
   flex: 0 0 ${({ $compact }) => ($compact ? '40px' : '56px')};
+  height: ${({ $compact }) => ($compact ? '40px' : '56px')};
   align-items: center;
   gap: 4px;
-  padding: ${({ $compact }) => ($compact ? '0 24px' : '12px 24px')};
+  padding: ${({ $compact }) => ($compact ? '0 24px' : '7px 24px')};
   border-top: 1px solid ${theme.color.neutral.separatorSubtle};
   border-bottom: 1px solid ${theme.color.neutral.separatorSubtle};
   background: ${theme.color.neutral.backgroundMuted};
@@ -827,6 +828,10 @@ const ModeTabs = styled(Tabs)<{ $stagger?: boolean; $right?: boolean }>`
         animation-delay: 240ms;
       }
 
+      [role='tab']:nth-child(7) {
+        animation-delay: 288ms;
+      }
+
       @media (prefers-reduced-motion: reduce) {
         [role='tab'] {
           opacity: 1;
@@ -837,28 +842,10 @@ const ModeTabs = styled(Tabs)<{ $stagger?: boolean; $right?: boolean }>`
     `}
 `;
 
-const FullTabSet = styled.div<{ $collapseAt: number }>`
-  display: flex;
+const AdaptiveTabsSlot = styled.div<{ $reserveEndGap: boolean }>`
   min-width: 0;
   flex: 1;
-
-  @container actor-tabs (max-width: ${({ $collapseAt }) => `${$collapseAt}px`}) {
-    display: none;
-  }
-`;
-
-const ResponsiveOverflowTabSet = styled.div<{ $minWidth: number; $maxWidth: number }>`
-  display: none;
-  min-width: 0;
-  flex: 1;
-  align-items: center;
-  gap: 4px;
-
-  @container actor-tabs
-    (min-width: ${({ $minWidth }) => `${$minWidth}px`})
-    and (max-width: ${({ $maxWidth }) => `${$maxWidth}px`}) {
-    display: flex;
-  }
+  margin-right: ${({ $reserveEndGap }) => ($reserveEndGap ? '116px' : '0')};
 `;
 
 const MoreDropdownTab = styled(ModeDropdownTab)<{
@@ -1389,9 +1376,9 @@ const Execute = styled(Button)`
 `;
 
 const sidebarTopItems = [
-  { label: 'Apify Store', Icon: ShoppingBagIcon, selected: true },
+  { label: 'Apify Store', Icon: ShoppingBagIcon },
   { label: 'Home', Icon: HomeIcon },
-  { label: 'Actors', Icon: CodeIcon },
+  { label: 'Actors', Icon: CodeIcon, selected: true },
   { label: 'Runs', Icon: PlayIcon },
   { label: 'Saved tasks', Icon: TasksIcon },
   { label: 'Integrations', Icon: PuzzleIcon },
@@ -1423,8 +1410,10 @@ const runTabs: TabData[] = [
 const singleTenantServerTabs: TabData[] = [
   { id: 'endpoints', title: 'Endpoints', Icon: ApiIcon, to: '#endpoints' },
   { id: 'requests', title: 'Requests', Icon: PlayIcon, to: '#requests' },
+  { id: 'runs', title: 'Runs', Icon: PlayIcon, to: '#runs' },
   { id: 'builds', title: 'Builds', Icon: BuildsIcon, to: '#builds' },
   { id: 'monitoring', title: 'Monitoring', Icon: MonitoringIcon, to: '#monitoring' },
+  { id: 'integrations', title: 'Integrations', Icon: PuzzleIcon, to: '#integrations' },
   { id: 'tasks', title: 'Saved tasks', Icon: TasksIcon, to: '#tasks' },
 ];
 
@@ -1441,6 +1430,7 @@ const multiTenantDevServerTabs: TabData[] = [
   { id: 'requests', title: 'Requests', Icon: PlayIcon, to: '#requests' },
   { id: 'builds', title: 'Builds', Icon: BuildsIcon, to: '#builds' },
   { id: 'monitoring', title: 'Monitoring', Icon: MonitoringIcon, to: '#monitoring' },
+  { id: 'integrations', title: 'Integrations', Icon: PuzzleIcon, to: '#integrations' },
   { id: 'tasks', title: 'Saved tasks', Icon: TasksIcon, to: '#tasks' },
 ];
 
@@ -1449,6 +1439,7 @@ const multiTenantServerTabs: TabData[] = [
   { id: 'requests', title: 'Requests', Icon: PlayIcon, to: '#requests' },
   createDisabledMultiTenantTab({ id: 'builds', title: 'Builds', Icon: BuildsIcon, to: '#builds' }),
   { id: 'monitoring', title: 'Monitoring', Icon: MonitoringIcon, to: '#monitoring' },
+  { id: 'integrations', title: 'Integrations', Icon: PuzzleIcon, to: '#integrations' },
   createDisabledMultiTenantTab({ id: 'tasks', title: 'Saved tasks', Icon: TasksIcon, to: '#tasks' }),
 ];
 
@@ -1456,6 +1447,7 @@ const detachedTabs: TabData[] = [
   { id: 'use', title: 'Use', Icon: PlayIcon, to: '#use' },
   { id: 'builds', title: 'Builds', Icon: BuildsIcon, to: '#builds' },
   { id: 'monitoring', title: 'Monitoring', Icon: MonitoringIcon, to: '#monitoring' },
+  { id: 'integrations', title: 'Integrations', Icon: PuzzleIcon, to: '#integrations' },
   { id: 'tasks', title: 'Saved tasks', Icon: TasksIcon, to: '#tasks' },
 ];
 
@@ -1930,6 +1922,102 @@ function OverflowTabs({
   );
 }
 
+function AdaptiveOperationalTabs({
+  tabs,
+  activeTab,
+  setActiveTab,
+  onSelect,
+  stagger,
+  reserveEndGap,
+}: {
+  tabs: TabData[];
+  activeTab: string;
+  setActiveTab: (tab: string) => void;
+  onSelect: ({ id, event }: { id: string; event: React.MouseEvent }) => void;
+  stagger?: boolean;
+  reserveEndGap: boolean;
+}) {
+  const slotRef = useRef<HTMLDivElement>(null);
+  const tabsRef = useRef<HTMLDivElement>(null);
+  const containerWidthRef = useRef<number | undefined>(undefined);
+  const [visibleCount, setVisibleCount] = useState(tabs.length);
+  const [availableWidth, setAvailableWidth] = useState<number>();
+
+  useLayoutEffect(() => {
+    setVisibleCount(tabs.length);
+  }, [reserveEndGap, tabs]);
+
+  useLayoutEffect(() => {
+    const slot = slotRef.current;
+    const renderedTabs = tabsRef.current;
+
+    if (
+      slot
+      && renderedTabs
+      && renderedTabs.scrollWidth > slot.clientWidth
+      && visibleCount > 0
+    ) {
+      setVisibleCount((count) => count - 1);
+    }
+  }, [availableWidth, tabs, visibleCount]);
+
+  useEffect(() => {
+    const slot = slotRef.current;
+    if (!slot) return;
+
+    const slotResizeObserver = new ResizeObserver(([entry]) => {
+      setAvailableWidth(Math.floor(entry.contentRect.width));
+    });
+    slotResizeObserver.observe(slot);
+
+    const container = slot.parentElement;
+    const containerResizeObserver = new ResizeObserver(([entry]) => {
+      const width = Math.floor(entry.contentRect.width);
+      const previousWidth = containerWidthRef.current;
+
+      if (previousWidth === undefined || width > previousWidth) {
+        setVisibleCount(tabs.length);
+      }
+
+      containerWidthRef.current = width;
+    });
+    if (container) containerResizeObserver.observe(container);
+
+    return () => {
+      slotResizeObserver.disconnect();
+      containerResizeObserver.disconnect();
+    };
+  }, [tabs]);
+
+  const visibleTabs = tabs.slice(0, visibleCount);
+  const overflowTabs = tabs.slice(visibleCount);
+
+  return (
+    <AdaptiveTabsSlot ref={slotRef} $reserveEndGap={reserveEndGap}>
+      <OperationalTabsTarget ref={tabsRef} data-flow-target="operational-tabs">
+        {visibleTabs.length > 0 && (
+          <OverflowVisibleTabs
+            $stagger={stagger}
+            variant="buttoned"
+            tabs={visibleTabs}
+            activeTab={activeTab}
+            onSelect={onSelect}
+          />
+        )}
+        {overflowTabs.length > 0 && (
+          <OverflowTabs
+            tabs={overflowTabs}
+            activeTab={activeTab}
+            setActiveTab={setActiveTab}
+            stagger={stagger}
+            staggerIndex={visibleTabs.length}
+          />
+        )}
+      </OperationalTabsTarget>
+    </AdaptiveTabsSlot>
+  );
+}
+
 function ModeNavigation({
   mode,
   setMode,
@@ -2001,24 +2089,7 @@ function ModeNavigation({
     : singleTenantServerTabs;
 
   const runOnly = supportsRunMode && !supportsServerMode;
-  const renderTabs = (tabs: TabData[], key: string, stagger = false, collapseAt = 900) => {
-    const adaptiveCollapseAt = devMode
-      ? collapseAt + 40
-      : Math.max(480, collapseAt - 240);
-    const collapseStep = 80;
-    const overflowStates = Array.from({ length: Math.max(0, tabs.length - 1) }, (_, index) => {
-      const hiddenCount = index + 1;
-      const visibleCount = tabs.length - hiddenCount;
-
-      return {
-        hiddenCount,
-        maxWidth: adaptiveCollapseAt - (hiddenCount - 1) * collapseStep,
-        minWidth: visibleCount === 1 ? 0 : adaptiveCollapseAt - hiddenCount * collapseStep + 1,
-        visibleTabs: tabs.slice(0, visibleCount),
-        overflowTabs: tabs.slice(visibleCount),
-      };
-    });
-
+  const renderTabs = (tabs: TabData[], key: string, stagger = false) => {
     return (
       <>
         {inlineSourceEnabled && (
@@ -2029,42 +2100,15 @@ function ModeNavigation({
             onSelect={selectTab}
           />
         )}
-        <FullTabSet $collapseAt={adaptiveCollapseAt}>
-          <OperationalTabsTarget data-flow-target="operational-tabs">
-            <OverflowVisibleTabs
-              key={`${key}:full`}
-              $stagger={stagger}
-              variant="buttoned"
-              tabs={tabs}
-              activeTab={activeTab}
-              onSelect={selectTab}
-            />
-          </OperationalTabsTarget>
-        </FullTabSet>
-        {overflowStates.map(({ hiddenCount, minWidth, maxWidth, visibleTabs, overflowTabs }) => (
-          <ResponsiveOverflowTabSet
-            key={`${key}:overflow:${hiddenCount}`}
-            $minWidth={minWidth}
-            $maxWidth={maxWidth}
-          >
-            <OperationalTabsTarget data-flow-target="operational-tabs">
-              <OverflowVisibleTabs
-                $stagger={stagger}
-                variant="buttoned"
-                tabs={visibleTabs}
-                activeTab={activeTab}
-                onSelect={selectTab}
-              />
-              <OverflowTabs
-                tabs={overflowTabs}
-                activeTab={activeTab}
-                setActiveTab={setActiveTab}
-                stagger={stagger}
-                staggerIndex={visibleTabs.length}
-              />
-            </OperationalTabsTarget>
-          </ResponsiveOverflowTabSet>
-        ))}
+        <AdaptiveOperationalTabs
+          key={key}
+          tabs={tabs}
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          onSelect={selectTab}
+          stagger={stagger}
+          reserveEndGap={devMode}
+        />
         {devMode && (
           <ModeTabs
             $right
@@ -2082,7 +2126,7 @@ function ModeNavigation({
   if (runOnly && variant !== 'disabled') {
     return (
       <TabsBar>
-        {renderTabs(runTabs, 'run-only', false, 840)}
+        {renderTabs(runTabs, 'run-only')}
       </TabsBar>
     );
   }
@@ -2090,7 +2134,7 @@ function ModeNavigation({
   if (variant === 'detached') {
     return (
       <TabsBar>
-        {renderTabs(detachedTabs, 'detached', false, 650)}
+        {renderTabs(detachedTabs, 'detached')}
       </TabsBar>
     );
   }
@@ -2108,7 +2152,7 @@ function ModeNavigation({
           supportsRunMode={supportsRunMode}
           supportsServerMode={supportsServerMode}
         />
-        {renderTabs(tabs, `disabled:${mode}`, false, mode === 'run' ? 1000 : 900)}
+        {renderTabs(tabs, `disabled:${mode}`, staggerMode === mode)}
       </TabsBar>
     );
   }
@@ -2179,7 +2223,6 @@ function ModeNavigation({
           (inlineVariant && staggerMode === mode)
           || (variant === 'split' && staggerSplitMode === splitMode)
         ),
-        (inlineVariant ? mode === 'run' : splitMode === 'input') ? 1000 : 900,
       )}
     </TabsBar>
   );
