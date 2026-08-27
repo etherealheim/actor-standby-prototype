@@ -45,6 +45,7 @@ import {
   Badge,
   Button,
   CheckboxPrimitive,
+  cssColorsVariablesDark,
   cssColorsVariablesLight,
   Dropdown,
   DropdownButton,
@@ -66,7 +67,14 @@ import { ActorInfoView } from './actor-info';
 
 type Mode = 'run' | 'server';
 type SplitMode = 'input' | 'server';
-type NavigationVariant = 'inline' | 'split' | 'detached' | 'disabled' | 'inline-v2';
+type NavigationVariant =
+  | 'inline'
+  | 'split'
+  | 'detached'
+  | 'disabled'
+  | 'inline-v2'
+  | 'inline-separated'
+  | 'detached-above';
 type OnboardingFlow = 'standby' | 'reshuffle';
 type PrototypeView = 'prototype' | 'actor-info';
 
@@ -82,6 +90,28 @@ const ApifyTokens = createGlobalStyle`
     outline: 1px solid color-mix(in srgb, ${theme.color.primary.action} 45%, transparent);
     outline-offset: 2px;
     box-shadow: 0 0 0 3px color-mix(in srgb, ${theme.color.primary.action} 7%, transparent);
+  }
+
+  .control-center-menu {
+    ${cssColorsVariablesDark}
+  }
+
+  .control-center-select {
+    border-color: transparent !important;
+    background-color: transparent !important;
+    background-image: none !important;
+  }
+
+  .control-center-select:hover,
+  .control-center-select[data-state='open'] {
+    border-color: transparent !important;
+    background-color: ${theme.color.primaryBlack.backgroundHover} !important;
+    background-image: none !important;
+  }
+
+  .control-center-select:active {
+    background-color: ${theme.color.primaryBlack.backgroundHover} !important;
+    background-image: none !important;
   }
 `;
 
@@ -580,12 +610,12 @@ const HeaderActions = styled.div`
   gap: 8px;
 `;
 
-const MetaRow = styled.div`
+const MetaRow = styled.div<{ $alignToPageGutter?: boolean }>`
   display: flex;
   align-items: center;
   gap: 8px;
   height: 24px;
-  padding-left: 26px;
+  padding-left: ${({ $alignToPageGutter }) => ($alignToPageGutter ? '8px' : '26px')};
 `;
 
 const ActorInfoButton = styled(Button)`
@@ -600,7 +630,7 @@ const Dot = styled.span`
   width: 4px;
   height: 4px;
   border-radius: 50%;
-  background: ${theme.color.neutral.textSubtle};
+  background: ${theme.color.neutral.border};
 `;
 
 const Author = styled.div`
@@ -632,12 +662,37 @@ const TabsBar = styled.div<{ $compact?: boolean }>`
   background: ${theme.color.neutral.backgroundMuted};
 `;
 
-const Segmented = styled.div`
+const SeparatedTabsBar = styled(TabsBar)`
+  gap: 0;
+  padding: 0;
+`;
+
+const SeparatedModePane = styled.div`
+  display: flex;
+  flex: 0 0 auto;
+  align-self: stretch;
+  align-items: center;
+  padding: 7px 16px 7px 24px;
+  border-right: 1px solid ${theme.color.neutral.separatorSubtle};
+  background: ${theme.color.neutral.backgroundMuted};
+`;
+
+const SeparatedTabsPane = styled.div`
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-self: stretch;
+  align-items: center;
+  gap: 4px;
+  padding: 7px 16px;
+`;
+
+const Segmented = styled.div<{ $compact?: boolean }>`
   display: flex;
   flex: 0 0 auto;
   align-items: center;
-  height: 32px;
-  padding: 0 3px;
+  height: ${({ $compact }) => ($compact ? '28px' : '32px')};
+  padding: ${({ $compact }) => ($compact ? '2px' : '0 3px')};
   border: 1px solid ${theme.color.neutral.border};
   border-radius: 6px;
   background: ${theme.color.neutral.backgroundMuted};
@@ -649,10 +704,10 @@ const Segmented = styled.div`
   }
 `;
 
-const Segment = styled.button<{ $active?: boolean; $disabled?: boolean }>`
+const Segment = styled.button<{ $active?: boolean; $disabled?: boolean; $compact?: boolean }>`
   position: relative;
-  height: 26px;
-  padding: 3px 8px;
+  height: ${({ $compact }) => ($compact ? '22px' : '26px')};
+  padding: ${({ $compact }) => ($compact ? '1px 6px' : '3px 8px')};
   border: ${({ $active }) => ($active ? `1px solid ${theme.color.neutral.border}` : '1px solid transparent')};
   border-radius: 4px;
   background: ${({ $active }) => ($active ? theme.color.neutral.background : 'transparent')};
@@ -1172,68 +1227,61 @@ const PlaceholderHint = styled.p`
 
 const VariantDock = styled.aside`
   position: fixed;
-  right: 16px;
+  left: 50%;
   bottom: 16px;
   z-index: 20;
   display: flex;
+  width: max-content;
+  max-width: calc(100vw - 32px);
   align-items: center;
   gap: 3px;
   height: 48px;
   padding: 4px;
-  border: 1px solid ${theme.color.neutral.border};
-  border-radius: 6px;
-  background: ${theme.color.neutral.background};
+  border: 1px solid ${theme.color.primaryBlack.action};
+  border-radius: 12px;
+  background: ${theme.color.primaryBlack.background};
+  transform: translateX(-50%);
 `;
 
-const VariantButton = styled.button<{ $active?: boolean }>`
+const DockVariantBadge = styled(Badge)`
+  ${cssColorsVariablesDark}
+  min-width: 20px;
+  flex: 0 0 auto;
+  font-variant-numeric: tabular-nums;
+`;
+
+const MenuVariantBadge = styled(Badge)`
+  min-width: 20px;
+  flex: 0 0 auto;
+  font-variant-numeric: tabular-nums;
+  transform: translateY(-2px);
+`;
+
+const VariantDropdownLabel = styled.span`
   display: inline-flex;
-  height: 40px;
   align-items: center;
   gap: 6px;
-  padding: 0 10px;
-  border: 1px solid ${({ $active }) => ($active ? theme.color.neutral.border : 'transparent')};
-  border-radius: 4px;
-  background: ${({ $active }) => ($active ? theme.color.neutral.backgroundSubtle : 'transparent')};
-  color: ${({ $active }) => ($active ? theme.color.neutral.text : theme.color.neutral.textSubtle)};
   font-size: 12px;
   font-weight: 500;
   line-height: 16px;
-  cursor: pointer;
-  transition-property: background-color, border-color, color;
-  transition-duration: 120ms;
-  transition-timing-function: ease;
-
-  &:hover {
-    background: ${theme.color.neutral.hover};
-    color: ${theme.color.neutral.text};
-  }
-
-  &:focus-visible {
-    outline: 2px solid ${theme.color.primary.fieldBorderActive};
-    outline-offset: 2px;
-  }
 `;
 
-const VariantNumber = styled.span`
-  display: grid;
-  width: 18px;
-  height: 18px;
-  place-items: center;
-  border-radius: 4px;
-  background: ${theme.color.neutral.backgroundMuted};
-  color: ${theme.color.neutral.text};
-  font-variant-numeric: tabular-nums;
+const VariantDropdownText = styled.span`
+  width: 104px;
+  text-align: left;
 `;
 
 const DockDivider = styled.span`
   width: 1px;
   height: 24px;
+  flex: 0 0 1px;
   margin: 0 3px;
-  background: ${theme.color.neutral.separatorSubtle};
+  background: color-mix(in srgb, ${theme.color.neutral.textOnPrimary} 18%, transparent);
 `;
 
 const ViewCheckboxLabel = styled.label`
   display: inline-flex;
+  flex: 0 0 auto;
   height: 40px;
   align-items: center;
   gap: 6px;
@@ -1241,24 +1289,30 @@ const ViewCheckboxLabel = styled.label`
   border: 1px solid transparent;
   border-radius: 4px;
   background: transparent;
-  color: ${theme.color.neutral.textSubtle};
+  color: ${theme.color.neutral.textOnPrimary};
   font-size: 12px;
   font-weight: 500;
   line-height: 16px;
+  white-space: nowrap;
   cursor: pointer;
+  transition-property: background-color;
+  transition-duration: 120ms;
+  transition-timing-function: ease;
 
   &:hover {
-    background: ${theme.color.neutral.hover};
-    color: ${theme.color.neutral.text};
+    background: ${theme.color.primaryBlack.backgroundHover};
   }
 
   &:focus-within {
-    background: ${theme.color.neutral.backgroundSubtle};
+    background: ${theme.color.primaryBlack.backgroundHover};
   }
 `;
 
 const ViewCheckbox = styled(CheckboxPrimitive)`
+  ${cssColorsVariablesDark}
   flex: 0 0 auto;
+  border-color: ${theme.color.neutral.border};
+  background-color: ${theme.color.neutral.background};
 `;
 
 const TenancyDropdownLabel = styled.span`
@@ -1473,6 +1527,8 @@ const variantOptions: Array<{ id: NavigationVariant; number: number; label: stri
   { id: 'split', number: 3, label: 'Dropdown tab' },
   { id: 'detached', number: 4, label: 'Detached' },
   { id: 'disabled', number: 5, label: 'Disabled' },
+  { id: 'inline-separated', number: 6, label: 'Inline separated' },
+  { id: 'detached-above', number: 7, label: 'Detached above' },
 ];
 
 const tabTitles: Record<string, string> = {
@@ -1511,7 +1567,14 @@ function getDefaultTab(variant: NavigationVariant, mode: Mode, splitMode: SplitM
 }
 
 const isInlineVariant = (variant: NavigationVariant) => (
-  variant === 'inline' || variant === 'inline-v2'
+  variant === 'inline'
+  || variant === 'inline-v2'
+  || variant === 'inline-separated'
+  || variant === 'detached-above'
+);
+
+const isDetachedVariant = (variant: NavigationVariant) => (
+  variant === 'detached'
 );
 
 function SidebarItem({
@@ -1638,7 +1701,13 @@ function AppSidebar({ compact, onToggle }: { compact: boolean; onToggle: () => v
   );
 }
 
-function ActorHeader({ onOpenActorInfo }: { onOpenActorInfo: () => void }) {
+function ActorHeader({
+  onOpenActorInfo,
+  modeControl,
+}: {
+  onOpenActorInfo: () => void;
+  modeControl?: ReactNode;
+}) {
   return (
     <Header>
       <TitleRow>
@@ -1675,7 +1744,9 @@ function ActorHeader({ onOpenActorInfo }: { onOpenActorInfo: () => void }) {
         </HeaderActions>
       </TitleRow>
 
-      <MetaRow>
+      <MetaRow $alignToPageGutter={Boolean(modeControl)}>
+        {modeControl}
+        {modeControl && <Dot aria-hidden="true" />}
         <Tag aria-label="Protected Actor" size="regular" variant="success" LeadingIcon={ShieldIcon} />
         <TechnicalTag
           size="regular"
@@ -1710,12 +1781,14 @@ function SegmentedModeControl({
   labels,
   tooltips,
   disabledModes,
+  compact = false,
 }: {
   mode: Mode;
   setMode: (mode: Mode) => void;
   labels: { run: string; server: string };
   tooltips?: { run: string; server: string };
   disabledModes?: Partial<Record<Mode, boolean>>;
+  compact?: boolean;
 }) {
   const handleKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>) => {
     const nextMode = event.key === 'ArrowRight' || event.key === 'End'
@@ -1749,6 +1822,7 @@ function SegmentedModeControl({
         tabIndex={disabled ? -1 : mode === segmentMode ? 0 : -1}
         $active={mode === segmentMode}
         $disabled={disabled}
+        $compact={compact}
         onClick={() => {
           if (!disabled) setMode(segmentMode);
         }}
@@ -1771,7 +1845,12 @@ function SegmentedModeControl({
   };
 
   return (
-    <Segmented role="tablist" aria-label="Actor mode" data-flow-target="mode-switcher">
+    <Segmented
+      role="tablist"
+      aria-label="Actor mode"
+      data-flow-target="mode-switcher"
+      $compact={compact}
+    >
       {renderSegment('run')}
       {renderSegment('server')}
     </Segmented>
@@ -2053,6 +2132,15 @@ function ModeNavigation({
     if (variant !== 'split') setStaggerSplitMode(undefined);
   }, [variant]);
 
+  const previousModeRef = useRef(mode);
+  useEffect(() => {
+    if (variant === 'detached-above' && previousModeRef.current !== mode) {
+      setStaggerMode(mode);
+    }
+
+    previousModeRef.current = mode;
+  }, [mode, variant]);
+
   const selectMode = (nextMode: Mode) => {
     const landingTab = variant === 'inline-v2' && devMode
       ? 'source'
@@ -2123,6 +2211,25 @@ function ModeNavigation({
     );
   };
 
+  const modeTooltips = {
+    run: supportsRunMode
+      ? 'Run mode uses Apify Input to configure and start Actor runs.'
+      : runModeUnsupportedMessage,
+    server: supportsServerMode
+      ? 'Server mode serves requests from the Actor’s Standby mode.'
+      : serverModeUnsupportedMessage,
+  };
+
+  const inlineModeControl = (
+    <SegmentedModeControl
+      mode={mode}
+      setMode={selectMode}
+      labels={{ run: 'Run mode', server: 'Server mode' }}
+      tooltips={modeTooltips}
+      disabledModes={{ run: !supportsRunMode, server: !supportsServerMode }}
+    />
+  );
+
   if (runOnly && variant !== 'disabled') {
     return (
       <TabsBar>
@@ -2135,6 +2242,16 @@ function ModeNavigation({
     return (
       <TabsBar>
         {renderTabs(detachedTabs, 'detached')}
+      </TabsBar>
+    );
+  }
+
+  if (variant === 'detached-above') {
+    const tabs = mode === 'run' ? runTabs : serverTabs;
+
+    return (
+      <TabsBar>
+        {renderTabs(tabs, `detached-above:${mode}`, staggerMode === mode)}
       </TabsBar>
     );
   }
@@ -2161,23 +2278,21 @@ function ModeNavigation({
     ? splitMode === 'input' ? runTabs : serverTabs
     : mode === 'run' ? runTabs : serverTabs;
 
+  if (variant === 'inline-separated') {
+    return (
+      <SeparatedTabsBar>
+        <SeparatedModePane>{inlineModeControl}</SeparatedModePane>
+        <SeparatedTabsPane>
+          {renderTabs(tabs, mode, staggerMode === mode)}
+        </SeparatedTabsPane>
+      </SeparatedTabsBar>
+    );
+  }
+
   return (
     <TabsBar>
       {inlineVariant ? (
-        <SegmentedModeControl
-          mode={mode}
-          setMode={selectMode}
-          labels={{ run: 'Run mode', server: 'Server mode' }}
-          tooltips={{
-            run: supportsRunMode
-              ? 'Run mode uses Apify Input to configure and start Actor runs.'
-              : runModeUnsupportedMessage,
-            server: supportsServerMode
-              ? 'Server mode serves requests from the Actor’s Standby mode.'
-              : serverModeUnsupportedMessage,
-          }}
-          disabledModes={{ run: !supportsRunMode, server: !supportsServerMode }}
-        />
+        inlineModeControl
       ) : (
         <ModeDropdownTab $active={activeTab === splitMode}>
           <DropdownButton
@@ -2247,7 +2362,7 @@ function PlaceholderContent({
   supportsRunMode: boolean;
   supportsServerMode: boolean;
 }) {
-  const detached = variant === 'detached';
+  const detached = isDetachedVariant(variant);
   const modeLabel = variant === 'split'
     ? splitMode === 'input' ? 'Run mode' : 'Server mode'
     : detached
@@ -2264,7 +2379,7 @@ function PlaceholderContent({
   return (
     <Content $detached={detached}>
       <ContentStack>
-        {detached && activeTab === 'use' && (
+        {variant === 'detached' && activeTab === 'use' && (
           <DetachedModeRow>
             <SegmentedModeControl
               mode={mode}
@@ -2536,22 +2651,50 @@ function VariantSelector({
   supportsServerMode: boolean;
   setSupportsServerMode: (supported: boolean) => void;
 }) {
+  const selectedVariant = variantOptions.find((option) => option.id === variant) ?? variantOptions[0];
+
   return (
     <VariantDock aria-label="Navigation design options">
-      {variantOptions.map((option) => (
-        <VariantButton
-          key={option.id}
-          type="button"
-          $active={option.id === variant}
-          aria-pressed={option.id === variant}
-          aria-label={`Option ${option.number}: ${option.label}`}
-          title={`Option ${option.number}: ${option.label}`}
-          onClick={() => onSelect(option.id)}
-        >
-          <VariantNumber>{option.number}</VariantNumber>
-          <span>{option.label}</span>
-        </VariantButton>
-      ))}
+      <DropdownButton
+        buttonLabel={(
+          <VariantDropdownLabel>
+            <DockVariantBadge size="small" variant="neutral_muted">
+              {selectedVariant.number}
+            </DockVariantBadge>
+            <VariantDropdownText>{selectedVariant.label}</VariantDropdownText>
+            <ChevronDownIcon size="16" aria-hidden="true" />
+          </VariantDropdownLabel>
+        )}
+        width="232px"
+        buttonProps={{
+          size: 'extraLarge',
+          variant: 'tertiary',
+          color: 'primaryBlack',
+          className: 'control-center-select',
+          'aria-label': `Navigation variant: Option ${selectedVariant.number}, ${selectedVariant.label}`,
+        } as React.ComponentProps<typeof DropdownButton>['buttonProps']}
+        contentProps={{
+          side: 'top',
+          align: 'start',
+          sideOffset: 6,
+          className: 'control-center-menu',
+        }}
+      >
+        {variantOptions.map((option) => (
+          <Dropdown.Item
+            key={option.id}
+            icon={(
+              <MenuVariantBadge size="small" variant="neutral_muted">
+                {option.number}
+              </MenuVariantBadge>
+            )}
+            selected={option.id === variant}
+            onSelect={() => onSelect(option.id)}
+          >
+            {option.label}
+          </Dropdown.Item>
+        ))}
+      </DropdownButton>
       <DockDivider aria-hidden="true" />
       <DockCheckbox
         id="supports-run-mode"
@@ -2559,12 +2702,14 @@ function VariantSelector({
         value={supportsRunMode}
         setValue={setSupportsRunMode}
       />
+      <DockDivider aria-hidden="true" />
       <DockCheckbox
         id="supports-server-mode"
         label="Server support"
         value={supportsServerMode}
         setValue={setSupportsServerMode}
       />
+      <DockDivider aria-hidden="true" />
       <DropdownButton
         buttonLabel={(
           <TenancyDropdownLabel>
@@ -2574,11 +2719,18 @@ function VariantSelector({
         )}
         width="128px"
         buttonProps={{
-          size: 'medium',
+          size: 'extraLarge',
           variant: 'tertiary',
+          color: 'primaryBlack',
+          className: 'control-center-select',
           'aria-label': `Tenancy: ${multiTenant ? 'Multi-tenant' : 'Single-tenant'}`,
         } as React.ComponentProps<typeof DropdownButton>['buttonProps']}
-        contentProps={{ side: 'top', align: 'end', sideOffset: 4 }}
+        contentProps={{
+          side: 'top',
+          align: 'end',
+          sideOffset: 4,
+          className: 'control-center-menu',
+        }}
       >
         <Dropdown.Item selected={!multiTenant} onSelect={() => setMultiTenant(false)}>
           Single-tenant
@@ -2587,17 +2739,19 @@ function VariantSelector({
           Multi-tenant
         </Dropdown.Item>
       </DropdownButton>
+      <DockDivider aria-hidden="true" />
       <DockCheckbox id="developer-view" label="Developer" value={devMode} setValue={setDevMode} />
       <DockDivider aria-hidden="true" />
       <DockCheckbox
         id="standby-onboarding-flow"
-        label="Flows Standby"
+        label="Standby flow"
         value={standbyFlowEnabled}
         setValue={setStandbyFlowEnabled}
       />
+      <DockDivider aria-hidden="true" />
       <DockCheckbox
         id="reshuffle-onboarding-flow"
-        label="Flows Reshuffle"
+        label="Reshuffle flow"
         value={reshuffleFlowEnabled}
         setValue={setReshuffleFlowEnabled}
       />
@@ -2649,7 +2803,7 @@ function PrototypeInner() {
     } else if (variant === 'split') {
       setSplitMode('server');
       setActiveTab('endpoints');
-    } else if (variant === 'detached') {
+    } else if (isDetachedVariant(variant)) {
       setMode('server');
       setActiveTab('use');
     } else {
@@ -2744,7 +2898,7 @@ function PrototypeInner() {
 
     setMode('server');
     setSplitMode('server');
-    setActiveTab(variant === 'detached' ? 'use' : 'endpoints');
+    setActiveTab(isDetachedVariant(variant) ? 'use' : 'endpoints');
   };
 
   const selectServerModeSupport = (supported: boolean) => {
@@ -2754,7 +2908,7 @@ function PrototypeInner() {
       if (!supportsRunMode) {
         setMode('server');
         setSplitMode('server');
-        setActiveTab(variant === 'detached' ? 'use' : 'endpoints');
+        setActiveTab(isDetachedVariant(variant) ? 'use' : 'endpoints');
       }
       return;
     }
@@ -2791,6 +2945,30 @@ function PrototypeInner() {
     window.history.pushState({}, '', url);
   };
 
+  const headerModeControl = (
+    variant === 'detached-above'
+    && !(supportsRunMode && !supportsServerMode)
+  ) ? (
+    <SegmentedModeControl
+      mode={mode}
+      setMode={(nextMode) => {
+        setMode(nextMode);
+        setActiveTab(nextMode === 'run' ? 'actor-input' : 'endpoints');
+      }}
+      labels={{ run: 'Run mode', server: 'Server mode' }}
+      tooltips={{
+        run: supportsRunMode
+          ? 'Run mode uses Apify Input to configure and start Actor runs.'
+          : runModeUnsupportedMessage,
+        server: supportsServerMode
+          ? 'Server mode serves requests from the Actor’s Standby mode.'
+          : serverModeUnsupportedMessage,
+      }}
+      disabledModes={{ run: !supportsRunMode, server: !supportsServerMode }}
+      compact
+    />
+  ) : undefined;
+
   return (
     <Shell $sidebarCompact={sidebarCompact}>
       <AppSidebar compact={sidebarCompact} onToggle={() => setSidebarCompact((compact) => !compact)} />
@@ -2799,7 +2977,10 @@ function PrototypeInner() {
           <ActorInfoView onBack={() => navigateToView('prototype')} />
         ) : (
           <>
-            <ActorHeader onOpenActorInfo={() => navigateToView('actor-info')} />
+            <ActorHeader
+              onOpenActorInfo={() => navigateToView('actor-info')}
+              modeControl={headerModeControl}
+            />
             <ModeNavigation
               mode={mode}
               setMode={setMode}
