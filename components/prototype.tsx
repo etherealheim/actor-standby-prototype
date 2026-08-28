@@ -26,6 +26,7 @@ import {
   HomeIcon,
   InputIcon,
   LayoutSidebarIcon,
+  McpIcon,
   MonitoringIcon,
   MoreIcon,
   PlayIcon,
@@ -74,7 +75,9 @@ type NavigationVariant =
   | 'disabled'
   | 'inline-v2'
   | 'inline-separated'
-  | 'detached-above';
+  | 'detached-above'
+  | 'detached-above-labeled'
+  | 'detached-above-trailing-label';
 type OnboardingFlow = 'standby' | 'reshuffle';
 type PrototypeView = 'prototype' | 'actor-info';
 
@@ -618,6 +621,21 @@ const MetaRow = styled.div<{ $alignToPageGutter?: boolean }>`
   padding-left: ${({ $alignToPageGutter }) => ($alignToPageGutter ? '8px' : '26px')};
 `;
 
+const TrailingLabeledModeControl = styled.div`
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+`;
+
+const ModeControlLabel = styled.span`
+  color: ${theme.color.neutral.textSubtle};
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+  white-space: nowrap;
+`;
+
 const ActorInfoButton = styled(Button)`
   margin-left: auto;
 `;
@@ -885,6 +903,10 @@ const ModeTabs = styled(Tabs)<{ $stagger?: boolean; $right?: boolean }>`
 
       [role='tab']:nth-child(7) {
         animation-delay: 288ms;
+      }
+
+      [role='tab']:nth-child(8) {
+        animation-delay: 336ms;
       }
 
       @media (prefers-reduced-motion: reduce) {
@@ -1461,9 +1483,46 @@ const runTabs: TabData[] = [
   { id: 'tasks', title: 'Saved tasks', Icon: TasksIcon, to: '#tasks' },
 ];
 
+const createDisabledTab = (tab: TabData, ariaLabel: string): TabData => ({
+  ...tab,
+  disabled: true,
+  'aria-disabled': true,
+  'aria-label': ariaLabel,
+  tabIndex: -1,
+} as TabData);
+
+const requestsTab: TabData = {
+  id: 'requests',
+  title: 'Requests',
+  Icon: PlayIcon,
+  to: '#requests',
+};
+
+const mcpTab: TabData = {
+  id: 'mcp',
+  title: 'MCP',
+  Icon: McpIcon,
+  to: '#mcp',
+};
+
+const mcpServerTab: TabData = {
+  ...mcpTab,
+  title: 'MCP server',
+};
+
+const singleTenantRequestsTab = createDisabledTab(
+  requestsTab,
+  'Requests are unavailable in Single-tenant Server mode',
+);
+
+const multiTenantRunsTab = createDisabledTab(
+  { id: 'runs', title: 'Runs', Icon: PlayIcon, to: '#runs' },
+  'Runs are unavailable in Multi-tenant Server mode',
+);
+
 const singleTenantServerTabs: TabData[] = [
-  { id: 'endpoints', title: 'Endpoints', Icon: ApiIcon, to: '#endpoints' },
-  { id: 'requests', title: 'Requests', Icon: PlayIcon, to: '#requests' },
+  { id: 'endpoints', title: 'Server', Icon: ApiIcon, to: '#endpoints' },
+  singleTenantRequestsTab,
   { id: 'runs', title: 'Runs', Icon: PlayIcon, to: '#runs' },
   { id: 'builds', title: 'Builds', Icon: BuildsIcon, to: '#builds' },
   { id: 'monitoring', title: 'Monitoring', Icon: MonitoringIcon, to: '#monitoring' },
@@ -1471,17 +1530,15 @@ const singleTenantServerTabs: TabData[] = [
   { id: 'tasks', title: 'Saved tasks', Icon: TasksIcon, to: '#tasks' },
 ];
 
-const createDisabledMultiTenantTab = (tab: TabData): TabData => ({
-  ...tab,
-  disabled: true,
-  'aria-disabled': true,
-  'aria-label': `${tab.title} requires Dev mode in Multi-tenant Server mode`,
-  tabIndex: -1,
-} as TabData);
+const createDisabledMultiTenantTab = (tab: TabData): TabData => createDisabledTab(
+  tab,
+  `${tab.title} requires Dev mode in Multi-tenant Server mode`,
+);
 
 const multiTenantDevServerTabs: TabData[] = [
-  { id: 'endpoints', title: 'Endpoints', Icon: ApiIcon, to: '#endpoints' },
+  { id: 'endpoints', title: 'Server', Icon: ApiIcon, to: '#endpoints' },
   { id: 'requests', title: 'Requests', Icon: PlayIcon, to: '#requests' },
+  multiTenantRunsTab,
   { id: 'builds', title: 'Builds', Icon: BuildsIcon, to: '#builds' },
   { id: 'monitoring', title: 'Monitoring', Icon: MonitoringIcon, to: '#monitoring' },
   { id: 'integrations', title: 'Integrations', Icon: PuzzleIcon, to: '#integrations' },
@@ -1489,21 +1546,21 @@ const multiTenantDevServerTabs: TabData[] = [
 ];
 
 const multiTenantServerTabs: TabData[] = [
-  { id: 'endpoints', title: 'Endpoints', Icon: ApiIcon, to: '#endpoints' },
+  { id: 'endpoints', title: 'Server', Icon: ApiIcon, to: '#endpoints' },
   { id: 'requests', title: 'Requests', Icon: PlayIcon, to: '#requests' },
+  multiTenantRunsTab,
   createDisabledMultiTenantTab({ id: 'builds', title: 'Builds', Icon: BuildsIcon, to: '#builds' }),
   { id: 'monitoring', title: 'Monitoring', Icon: MonitoringIcon, to: '#monitoring' },
   { id: 'integrations', title: 'Integrations', Icon: PuzzleIcon, to: '#integrations' },
   createDisabledMultiTenantTab({ id: 'tasks', title: 'Saved tasks', Icon: TasksIcon, to: '#tasks' }),
 ];
 
-const detachedTabs: TabData[] = [
-  { id: 'use', title: 'Use', Icon: PlayIcon, to: '#use' },
-  { id: 'builds', title: 'Builds', Icon: BuildsIcon, to: '#builds' },
-  { id: 'monitoring', title: 'Monitoring', Icon: MonitoringIcon, to: '#monitoring' },
-  { id: 'integrations', title: 'Integrations', Icon: PuzzleIcon, to: '#integrations' },
-  { id: 'tasks', title: 'Saved tasks', Icon: TasksIcon, to: '#tasks' },
-];
+const detachedUseTab: TabData = {
+  id: 'use',
+  title: 'Use',
+  Icon: PlayIcon,
+  to: '#use',
+};
 
 const developerTabs: TabData[] = [
   { id: 'source', title: 'Source', Icon: CodeIcon, to: '#source' },
@@ -1521,14 +1578,20 @@ const runModeUnsupportedMessage =
 const serverModeUnsupportedMessage =
   'This Actor doesn’t support Server mode. Server mode keeps the Actor ready to serve requests from Standby mode.';
 
-const variantOptions: Array<{ id: NavigationVariant; number: number; label: string }> = [
-  { id: 'inline', number: 1, label: 'Inline' },
-  { id: 'inline-v2', number: 2, label: 'Inline v2' },
-  { id: 'split', number: 3, label: 'Dropdown tab' },
-  { id: 'detached', number: 4, label: 'Detached' },
-  { id: 'disabled', number: 5, label: 'Disabled' },
-  { id: 'inline-separated', number: 6, label: 'Inline separated' },
-  { id: 'detached-above', number: 7, label: 'Detached above' },
+const variantOptions: Array<{
+  id: NavigationVariant;
+  number: number;
+  label: string;
+  shortLabel?: string;
+}> = [
+  {
+    id: 'detached-above-labeled',
+    number: 1,
+    label: 'Detached above compact',
+    shortLabel: 'Compact service',
+  },
+  { id: 'inline-separated', number: 2, label: 'Inline separated' },
+  { id: 'disabled', number: 3, label: 'Disabled' },
 ];
 
 const tabTitles: Record<string, string> = {
@@ -1537,8 +1600,9 @@ const tabTitles: Record<string, string> = {
   input: 'Run mode',
   'actor-input': 'Input',
   runs: 'Runs',
-  endpoints: 'Endpoints',
+  endpoints: 'Server',
   requests: 'Requests',
+  mcp: 'MCP',
   builds: 'Builds',
   monitoring: 'Monitoring',
   integrations: 'Integrations',
@@ -1555,6 +1619,7 @@ const tabRoutes: Record<string, string> = {
   server: 'standby',
   input: 'input',
   'actor-input': 'input',
+  mcp: 'mcp',
   source: 'source',
   publishing: 'publishing',
   settings: 'settings',
@@ -1566,11 +1631,17 @@ function getDefaultTab(variant: NavigationVariant, mode: Mode, splitMode: SplitM
   return mode === 'run' ? 'actor-input' : 'endpoints';
 }
 
+const isDetachedAboveVariant = (variant: NavigationVariant) => (
+  variant === 'detached-above'
+  || variant === 'detached-above-labeled'
+  || variant === 'detached-above-trailing-label'
+);
+
 const isInlineVariant = (variant: NavigationVariant) => (
   variant === 'inline'
   || variant === 'inline-v2'
   || variant === 'inline-separated'
-  || variant === 'detached-above'
+  || isDetachedAboveVariant(variant)
 );
 
 const isDetachedVariant = (variant: NavigationVariant) => (
@@ -1892,13 +1963,13 @@ function DedicatedModeControl({
 
   const renderTab = (tabMode: Mode) => {
     const disabled = disabledModes[tabMode];
-    const label = tabMode === 'run' ? 'Input' : 'Endpoints';
+    const label = tabMode === 'run' ? 'Input' : 'Server';
     const tooltip = tabMode === 'run'
       ? supportsRunMode
         ? 'Input configures and starts the Actor in Run mode.'
         : runModeUnsupportedMessage
       : supportsServerMode
-        ? 'Endpoints serve requests from the Actor’s Server mode.'
+        ? 'Server mode serves requests from the Actor.'
         : serverModeUnsupportedMessage;
     const Icon = tabMode === 'run' ? InputIcon : ApiIcon;
     const tab = (
@@ -2134,7 +2205,7 @@ function ModeNavigation({
 
   const previousModeRef = useRef(mode);
   useEffect(() => {
-    if (variant === 'detached-above' && previousModeRef.current !== mode) {
+    if (isDetachedAboveVariant(variant) && previousModeRef.current !== mode) {
       setStaggerMode(mode);
     }
 
@@ -2158,6 +2229,12 @@ function ModeNavigation({
 
   const selectTab = ({ id, event }: { id: string; event: React.MouseEvent }) => {
     event.preventDefault();
+
+    if (variant === 'disabled') {
+      if (id === 'actor-input') setMode('run');
+      if (id === 'endpoints' || id === 'mcp' || id === 'requests') setMode('server');
+    }
+
     setActiveTab(id);
   };
 
@@ -2175,6 +2252,17 @@ function ModeNavigation({
   const serverTabs = multiTenant
     ? devMode ? multiTenantDevServerTabs : multiTenantServerTabs
     : singleTenantServerTabs;
+  const visibleServerTabs = variant === 'detached-above-labeled'
+    ? serverTabs.flatMap((tab) => (
+        tab.id === 'endpoints'
+          ? [{ ...tab, title: 'Endpoints' }, mcpTab]
+          : [tab]
+      ))
+    : variant === 'inline-separated'
+      ? serverTabs.flatMap((tab) => (
+          tab.id === 'endpoints' ? [tab, mcpServerTab] : [tab]
+        ))
+    : serverTabs;
 
   const runOnly = supportsRunMode && !supportsServerMode;
   const renderTabs = (tabs: TabData[], key: string, stagger = false) => {
@@ -2224,7 +2312,9 @@ function ModeNavigation({
     <SegmentedModeControl
       mode={mode}
       setMode={selectMode}
-      labels={{ run: 'Run mode', server: 'Server mode' }}
+      labels={variant === 'inline-separated'
+        ? { run: 'Run', server: 'Service' }
+        : { run: 'Run mode', server: 'Server mode' }}
       tooltips={modeTooltips}
       disabledModes={{ run: !supportsRunMode, server: !supportsServerMode }}
     />
@@ -2239,44 +2329,63 @@ function ModeNavigation({
   }
 
   if (variant === 'detached') {
+    const tabs = mode === 'run'
+      ? [
+          detachedUseTab,
+          multiTenant ? requestsTab : singleTenantRequestsTab,
+          ...runTabs.slice(1),
+        ]
+      : [detachedUseTab, ...serverTabs.slice(1)];
+
     return (
       <TabsBar>
-        {renderTabs(detachedTabs, 'detached')}
+        {renderTabs(tabs, `detached:${mode}:${multiTenant}:${devMode}`)}
       </TabsBar>
     );
   }
 
-  if (variant === 'detached-above') {
-    const tabs = mode === 'run' ? runTabs : serverTabs;
+  if (isDetachedAboveVariant(variant)) {
+    const tabs = mode === 'run' ? runTabs : visibleServerTabs;
 
     return (
       <TabsBar>
-        {renderTabs(tabs, `detached-above:${mode}`, staggerMode === mode)}
+        {renderTabs(tabs, `${variant}:${mode}`, staggerMode === mode)}
       </TabsBar>
     );
   }
 
   if (variant === 'disabled') {
-    const tabs = (mode === 'run' ? runTabs : serverTabs).filter(({ id }) => (
-      id !== 'actor-input' && id !== 'endpoints'
+    const serverTabsWithMcp = serverTabs.flatMap((tab) => (
+      tab.id === 'endpoints' ? [tab, mcpTab] : [tab]
     ));
+    const runPrimaryTabs = supportsRunMode
+      ? runTabs.filter(({ id }) => id === 'actor-input')
+      : [];
+    const serverPrimaryTabs = supportsServerMode
+      ? serverTabsWithMcp.filter(({ id }) => (
+          id === 'endpoints' || id === 'mcp' || id === 'requests'
+        ))
+      : [];
+    const sharedTabs = supportsServerMode
+      ? serverTabs.filter(({ id }) => id !== 'endpoints' && id !== 'requests')
+      : supportsRunMode
+        ? runTabs.filter(({ id }) => id !== 'actor-input')
+        : [];
+    const tabs = [...runPrimaryTabs, ...serverPrimaryTabs, ...sharedTabs];
 
     return (
       <TabsBar>
-        <DedicatedModeControl
-          mode={mode}
-          setMode={selectMode}
-          supportsRunMode={supportsRunMode}
-          supportsServerMode={supportsServerMode}
-        />
-        {renderTabs(tabs, `disabled:${mode}`, staggerMode === mode)}
+        {renderTabs(
+          tabs,
+          `disabled:${supportsRunMode}:${supportsServerMode}:${multiTenant}:${devMode}`,
+        )}
       </TabsBar>
     );
   }
 
   const tabs = variant === 'split'
-    ? splitMode === 'input' ? runTabs : serverTabs
-    : mode === 'run' ? runTabs : serverTabs;
+    ? splitMode === 'input' ? runTabs : visibleServerTabs
+    : mode === 'run' ? runTabs : visibleServerTabs;
 
   if (variant === 'inline-separated') {
     return (
@@ -2368,7 +2477,11 @@ function PlaceholderContent({
     : detached
       ? mode === 'run' ? 'Run mode' : 'Server mode'
       : mode === 'run' ? 'Run mode' : 'Server mode';
-  const tabTitle = tabTitles[activeTab] ?? 'Content';
+  const tabTitle = activeTab === 'endpoints' && variant === 'detached-above-labeled'
+    ? 'Endpoints'
+    : activeTab === 'mcp' && variant === 'inline-separated'
+      ? 'MCP server'
+      : tabTitles[activeTab] ?? 'Content';
   const tabRoute = tabRoutes[activeTab] ?? activeTab;
 
   const selectDetachedMode = (nextMode: Mode) => {
@@ -2661,7 +2774,9 @@ function VariantSelector({
             <DockVariantBadge size="small" variant="neutral_muted">
               {selectedVariant.number}
             </DockVariantBadge>
-            <VariantDropdownText>{selectedVariant.label}</VariantDropdownText>
+            <VariantDropdownText>
+              {selectedVariant.shortLabel ?? selectedVariant.label}
+            </VariantDropdownText>
             <ChevronDownIcon size="16" aria-hidden="true" />
           </VariantDropdownLabel>
         )}
@@ -2762,7 +2877,7 @@ function VariantSelector({
 function PrototypeInner() {
   const [mode, setMode] = useState<Mode>('run');
   const [splitMode, setSplitMode] = useState<SplitMode>('input');
-  const [variant, setVariant] = useState<NavigationVariant>('inline');
+  const [variant, setVariant] = useState<NavigationVariant>('detached-above-labeled');
   const [activeTab, setActiveTab] = useState('actor-input');
   const [standbyFlowEnabled, setStandbyFlowEnabled] = useState(false);
   const [reshuffleFlowEnabled, setReshuffleFlowEnabled] = useState(false);
@@ -2781,6 +2896,10 @@ function PrototypeInner() {
     if (initialVariant) {
       setVariant(initialVariant);
       setActiveTab(getDefaultTab(initialVariant, mode, splitMode));
+    } else if (searchParams.has('option')) {
+      const url = new URL(window.location.href);
+      url.searchParams.set('option', '1');
+      window.history.replaceState({}, '', url);
     }
 
     setCurrentView(searchParams.get('view') === 'actor-info' ? 'actor-info' : 'prototype');
@@ -2814,7 +2933,7 @@ function PrototypeInner() {
   useEffect(() => {
     if (!reshuffleFlowEnabled) return;
 
-    setVariant('inline');
+    setVariant('detached-above-labeled');
     setSupportsRunMode(true);
     setSupportsServerMode(true);
     setMode('run');
@@ -2842,26 +2961,34 @@ function PrototypeInner() {
   };
 
   const selectTenancy = (nextMultiTenant: boolean) => {
-    const serverModeActive = (variant === 'disabled' && mode === 'server')
+    const serverModeActive = (variant === 'disabled' && supportsServerMode)
       || (isInlineVariant(variant) && mode === 'server')
-      || (variant === 'split' && splitMode === 'server');
-
-    if (
-      nextMultiTenant
+      || (variant === 'split' && splitMode === 'server')
+      || (variant === 'detached' && mode === 'server');
+    const requestsBecomesDisabled = !nextMultiTenant
+      && activeTab === 'requests'
+      && (serverModeActive || variant === 'detached');
+    const runsBecomesDisabled = nextMultiTenant
+      && activeTab === 'runs'
+      && serverModeActive;
+    const developerTabBecomesDisabled = nextMultiTenant
       && !devMode
       && serverModeActive
-      && (activeTab === 'builds' || activeTab === 'tasks')
-    ) {
-      setActiveTab('endpoints');
+      && (activeTab === 'builds' || activeTab === 'tasks');
+
+    if (requestsBecomesDisabled || runsBecomesDisabled || developerTabBecomesDisabled) {
+      setActiveTab(variant === 'detached' ? 'use' : 'endpoints');
+      if (variant === 'disabled') setMode('server');
     }
 
     setMultiTenant(nextMultiTenant);
   };
 
   const selectDevMode = (nextDevMode: boolean) => {
-    const serverModeActive = (variant === 'disabled' && mode === 'server')
+    const serverModeActive = (variant === 'disabled' && supportsServerMode)
       || (isInlineVariant(variant) && mode === 'server')
-      || (variant === 'split' && splitMode === 'server');
+      || (variant === 'split' && splitMode === 'server')
+      || (variant === 'detached' && mode === 'server');
 
     if (!nextDevMode) {
       if (developerTabIds.has(activeTab)) {
@@ -2876,6 +3003,7 @@ function PrototypeInner() {
         && (activeTab === 'builds' || activeTab === 'tasks')
       ) {
         setActiveTab('endpoints');
+        if (variant === 'disabled') setMode('server');
       }
     }
 
@@ -2945,17 +3073,18 @@ function PrototypeInner() {
     window.history.pushState({}, '', url);
   };
 
-  const headerModeControl = (
-    variant === 'detached-above'
-    && !(supportsRunMode && !supportsServerMode)
-  ) ? (
+  const headerModeSwitcher = isDetachedAboveVariant(variant) ? (
     <SegmentedModeControl
       mode={mode}
       setMode={(nextMode) => {
         setMode(nextMode);
         setActiveTab(nextMode === 'run' ? 'actor-input' : 'endpoints');
       }}
-      labels={{ run: 'Run mode', server: 'Server mode' }}
+      labels={variant === 'detached-above-labeled'
+        ? { run: 'Run', server: 'Server' }
+        : variant === 'detached-above-trailing-label'
+          ? { run: 'Run', server: 'Server' }
+        : { run: 'Run mode', server: 'Server mode' }}
       tooltips={{
         run: supportsRunMode
           ? 'Run mode uses Apify Input to configure and start Actor runs.'
@@ -2968,6 +3097,16 @@ function PrototypeInner() {
       compact
     />
   ) : undefined;
+
+  const headerModeControl = (
+    headerModeSwitcher
+    && !(supportsRunMode && !supportsServerMode)
+  ) ? variant === 'detached-above-trailing-label' ? (
+    <TrailingLabeledModeControl>
+      {headerModeSwitcher}
+      <ModeControlLabel>Mode</ModeControlLabel>
+    </TrailingLabeledModeControl>
+  ) : headerModeSwitcher : undefined;
 
   return (
     <Shell $sidebarCompact={sidebarCompact}>

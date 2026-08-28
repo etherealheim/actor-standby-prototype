@@ -401,7 +401,7 @@ export function ActorInfoView({ onBack }: { onBack: () => void }) {
           </IdentityRow>
           <HeroDescription>
             Extract contact details from websites and keep a ready-to-use Server mode endpoint for immediate requests.
-            Configure the Actor through Input or connect directly to its Endpoints.
+            Configure the Actor through Input or use its Server mode directly.
           </HeroDescription>
         </HeroBody>
       </Hero>
