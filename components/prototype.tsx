@@ -1505,11 +1505,6 @@ const mcpTab: TabData = {
   to: '#mcp',
 };
 
-const mcpServerTab: TabData = {
-  ...mcpTab,
-  title: 'MCP server',
-};
-
 const singleTenantRequestsTab = createDisabledTab(
   requestsTab,
   'Requests are unavailable in Single-tenant Server mode',
@@ -2260,7 +2255,7 @@ function ModeNavigation({
       ))
     : variant === 'inline-separated'
       ? serverTabs.flatMap((tab) => (
-          tab.id === 'endpoints' ? [tab, mcpServerTab] : [tab]
+          tab.id === 'endpoints' ? [tab, mcpTab] : [tab]
         ))
     : serverTabs;
 
@@ -2479,9 +2474,7 @@ function PlaceholderContent({
       : mode === 'run' ? 'Run mode' : 'Server mode';
   const tabTitle = activeTab === 'endpoints' && variant === 'detached-above-labeled'
     ? 'Endpoints'
-    : activeTab === 'mcp' && variant === 'inline-separated'
-      ? 'MCP server'
-      : tabTitles[activeTab] ?? 'Content';
+    : tabTitles[activeTab] ?? 'Content';
   const tabRoute = tabRoutes[activeTab] ?? activeTab;
 
   const selectDetachedMode = (nextMode: Mode) => {
