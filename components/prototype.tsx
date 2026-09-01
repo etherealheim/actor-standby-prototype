@@ -78,6 +78,7 @@ type NavigationVariant =
   | 'detached-above'
   | 'detached-above-labeled'
   | 'detached-above-trailing-label';
+type ServerNoun = 'Server' | 'Service';
 type OnboardingFlow = 'standby' | 'reshuffle';
 type PrototypeView = 'prototype' | 'actor-info';
 
@@ -1612,26 +1613,44 @@ const developerTabIds = new Set(developerTabs.map(({ id }) => id));
 
 const runModeMessage =
   'Run mode uses Apify Input to configure and start Actor runs.';
-const serverModeMessage =
-  'Server mode keeps the Actor ready to serve requests.';
+const serverModeLabel = (noun: ServerNoun) => `${noun} mode`;
+const serverModeMessage = (noun: ServerNoun) =>
+  `${serverModeLabel(noun)} keeps the Actor ready to serve requests.`;
 const runModeUnsupportedMessage =
   `This Actor doesn’t support Run mode. ${runModeMessage}`;
-const serverModeUnsupportedMessage =
-  `This Actor doesn’t support Server mode. ${serverModeMessage}`;
+const serverModeUnsupportedMessage = (noun: ServerNoun) =>
+  `This Actor doesn’t support ${serverModeLabel(noun)}. ${serverModeMessage(noun)}`;
+
+const modeTooltipCopy = (
+  { supportsRunMode, supportsServerMode, serverNoun }:
+  { supportsRunMode: boolean; supportsServerMode: boolean; serverNoun: ServerNoun },
+) => ({
+  run: supportsRunMode ? runModeMessage : runModeUnsupportedMessage,
+  server: supportsServerMode ? serverModeMessage(serverNoun) : serverModeUnsupportedMessage(serverNoun),
+});
+
+/** Retitles the Server tab and its disabled reasons when the naming toggle is flipped. */
+const applyServerNoun = (tabs: TabData[], noun: ServerNoun): TabData[] => (
+  noun === 'Server' ? tabs : tabs.map((tab) => {
+    const ariaLabel = (tab as TabData & { 'aria-label'?: unknown })['aria-label'];
+    return {
+      ...tab,
+      title: tab.title === 'Server' ? noun : tab.title,
+      'aria-label': typeof ariaLabel === 'string'
+        ? ariaLabel.replaceAll('Server mode', serverModeLabel(noun))
+        : ariaLabel,
+    } as TabData;
+  })
+);
 
 const modeDocsUrls: Record<Mode, string> = {
   run: 'https://docs.apify.com/platform/actors/running',
   server: 'https://docs.apify.com/platform/actors/running/standby',
 };
 
-const modeDocsLabels: Record<Mode, string> = {
-  run: 'Run mode',
-  server: 'Server mode',
-};
-
 // Links the mode name inside the tooltip copy rather than appending a "Learn more".
-const withDocsLink = (text: string, mode: Mode) => {
-  const label = modeDocsLabels[mode];
+const withDocsLink = (text: string, mode: Mode, serverNoun: ServerNoun = 'Server') => {
+  const label = mode === 'run' ? 'Run mode' : serverModeLabel(serverNoun);
   const index = text.indexOf(label);
 
   if (index === -1) return text;
@@ -1921,6 +1940,7 @@ function SegmentedModeControl({
   labels,
   tooltips,
   disabledModes,
+  serverNoun = 'Server',
   compact = false,
 }: {
   mode: Mode;
@@ -1928,6 +1948,7 @@ function SegmentedModeControl({
   labels: { run: string; server: string };
   tooltips?: { run: string; server: string };
   disabledModes?: Partial<Record<Mode, boolean>>;
+  serverNoun?: ServerNoun;
   compact?: boolean;
 }) {
   const handleKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>) => {
@@ -1974,7 +1995,7 @@ function SegmentedModeControl({
 
     return tooltip ? (
       <Tooltip
-        content={withDocsLink(tooltip, segmentMode)}
+        content={withDocsLink(tooltip, segmentMode, serverNoun)}
         placement="bottom"
         delayShow={disabled ? 200 : 500}
         delayHide={300}
@@ -2039,8 +2060,8 @@ function DedicatedModeControl({
         ? 'Input configures and starts the Actor in Run mode.'
         : runModeUnsupportedMessage
       : supportsServerMode
-        ? 'Server mode serves requests from the Actor.'
-        : serverModeUnsupportedMessage;
+        ? serverModeMessage('Server')
+        : serverModeUnsupportedMessage('Server');
     const Icon = tabMode === 'run' ? InputIcon : ApiIcon;
     const tab = (
       <DedicatedModeTab
@@ -2252,6 +2273,7 @@ function ModeNavigation({
   supportsRunMode,
   supportsServerMode,
   alwaysShowModes,
+  serverNoun,
 }: {
   mode: Mode;
   setMode: (mode: Mode) => void;
@@ -2265,6 +2287,7 @@ function ModeNavigation({
   supportsRunMode: boolean;
   supportsServerMode: boolean;
   alwaysShowModes: boolean;
+  serverNoun: ServerNoun;
 }) {
   const [staggerMode, setStaggerMode] = useState<Mode>();
   const [staggerSplitMode, setStaggerSplitMode] = useState<SplitMode>();
@@ -2322,9 +2345,12 @@ function ModeNavigation({
     setActiveTab(nextMode === 'input' ? 'actor-input' : 'endpoints');
   };
 
-  const serverTabs = multiTenant
-    ? devMode ? multiTenantDevServerTabs : multiTenantServerTabs
-    : singleTenantServerTabs;
+  const serverTabs = applyServerNoun(
+    multiTenant
+      ? devMode ? multiTenantDevServerTabs : multiTenantServerTabs
+      : singleTenantServerTabs,
+    serverNoun,
+  );
   const visibleServerTabs = variant === 'detached-above-labeled'
     ? serverTabs.flatMap((tab) => (
         tab.id === 'endpoints'
@@ -2339,6 +2365,17 @@ function ModeNavigation({
 
   const runOnly = supportsRunMode && !supportsServerMode;
   const renderTabs = (tabs: TabData[], key: string, stagger = false) => {
+    // Disabled tabs are only blocked by pointer-events in CSS; don't let one slip
+    // through and switch the mode behind the Actor's declared capabilities.
+    const selectEnabledTab = (data: { id: string; event: React.MouseEvent }) => {
+      if (tabs.some((tab) => tab.id === data.id && tab.disabled)) {
+        data.event.preventDefault();
+        return;
+      }
+
+      selectTab(data);
+    };
+
     return (
       <>
         {inlineSourceEnabled && (
@@ -2354,7 +2391,7 @@ function ModeNavigation({
           tabs={tabs}
           activeTab={activeTab}
           setActiveTab={setActiveTab}
-          onSelect={selectTab}
+          onSelect={selectEnabledTab}
           stagger={stagger}
           reserveEndGap={devMode}
         />
@@ -2372,20 +2409,18 @@ function ModeNavigation({
     );
   };
 
-  const modeTooltips = {
-    run: supportsRunMode ? runModeMessage : runModeUnsupportedMessage,
-    server: supportsServerMode ? serverModeMessage : serverModeUnsupportedMessage,
-  };
+  const modeTooltips = modeTooltipCopy({ supportsRunMode, supportsServerMode, serverNoun });
 
   const inlineModeControl = (
     <SegmentedModeControl
       mode={mode}
       setMode={selectMode}
       labels={variant === 'inline-separated'
-        ? { run: 'Run', server: 'Server' }
-        : { run: 'Run mode', server: 'Server mode' }}
+        ? { run: 'Run', server: serverNoun }
+        : { run: 'Run mode', server: serverModeLabel(serverNoun) }}
       tooltips={modeTooltips}
       disabledModes={{ run: !supportsRunMode, server: !supportsServerMode }}
+      serverNoun={serverNoun}
     />
   );
 
@@ -2446,7 +2481,7 @@ function ModeNavigation({
       : alwaysShowModes
         ? serverPrimarySource.map((tab) => createDisabledTab(
             tab,
-            `${tab.title} requires Server mode, which this Actor doesn’t support`,
+            `${tab.title} requires ${serverModeLabel(serverNoun)}, which this Actor doesn’t support`,
           ))
         : [];
     const restoreRunModeTabs = runModeRestoresTabs(variant, supportsRunMode);
@@ -2497,7 +2532,7 @@ function ModeNavigation({
           <DropdownButton
             buttonLabel={(
               <ModeDropdownLabel>
-                <span>{splitMode === 'input' ? 'Run mode' : 'Server mode'}</span>
+                <span>{splitMode === 'input' ? 'Run mode' : serverModeLabel(serverNoun)}</span>
                 <ChevronDownIcon size="16" aria-hidden="true" />
               </ModeDropdownLabel>
             )}
@@ -2507,7 +2542,7 @@ function ModeNavigation({
               variant: 'tertiary',
               role: 'tab',
               'aria-selected': activeTab === splitMode,
-              'aria-label': `${splitMode === 'input' ? 'Run mode' : 'Server mode'}, choose Actor mode`,
+              'aria-label': `${splitMode === 'input' ? 'Run mode' : serverModeLabel(serverNoun)}, choose Actor mode`,
               'data-flow-target': 'server-mode',
               onClick: () => undefined,
             } as React.ComponentProps<typeof DropdownButton>['buttonProps']}
@@ -2525,7 +2560,7 @@ function ModeNavigation({
               selected={splitMode === 'server'}
               onSelect={() => selectSplitMode('server')}
             >
-              Server mode
+              {serverModeLabel(serverNoun)}
             </Dropdown.Item>
           </DropdownButton>
         </ModeDropdownTab>
@@ -2551,6 +2586,7 @@ function PlaceholderContent({
   setActiveTab,
   supportsRunMode,
   supportsServerMode,
+  serverNoun,
 }: {
   variant: NavigationVariant;
   mode: Mode;
@@ -2560,16 +2596,18 @@ function PlaceholderContent({
   setActiveTab: (tab: string) => void;
   supportsRunMode: boolean;
   supportsServerMode: boolean;
+  serverNoun: ServerNoun;
 }) {
   const detached = isDetachedVariant(variant);
+  const serverLabel = serverModeLabel(serverNoun);
   const modeLabel = variant === 'split'
-    ? splitMode === 'input' ? 'Run mode' : 'Server mode'
-    : detached
-      ? mode === 'run' ? 'Run mode' : 'Server mode'
-      : mode === 'run' ? 'Run mode' : 'Server mode';
-  const tabTitle = activeTab === 'endpoints' && variant === 'detached-above-labeled'
-    ? 'Endpoints'
-    : tabTitles[activeTab] ?? 'Content';
+    ? splitMode === 'input' ? 'Run mode' : serverLabel
+    : mode === 'run' ? 'Run mode' : serverLabel;
+  const tabTitle = activeTab === 'endpoints'
+    ? variant === 'detached-above-labeled' ? 'Endpoints' : serverNoun
+    : activeTab === 'server' || activeTab === 'standby'
+      ? serverLabel
+      : tabTitles[activeTab] ?? 'Content';
   const tabRoute = tabRoutes[activeTab] ?? activeTab;
 
   const selectDetachedMode = (nextMode: Mode) => {
@@ -2585,12 +2623,12 @@ function PlaceholderContent({
             <SegmentedModeControl
               mode={mode}
               setMode={selectDetachedMode}
-              labels={{ run: 'Run mode', server: 'Server mode' }}
-              tooltips={!supportsRunMode || !supportsServerMode ? {
-                run: supportsRunMode ? runModeMessage : runModeUnsupportedMessage,
-                server: supportsServerMode ? serverModeMessage : serverModeUnsupportedMessage,
-              } : undefined}
+              labels={{ run: 'Run mode', server: serverLabel }}
+              tooltips={!supportsRunMode || !supportsServerMode
+                ? modeTooltipCopy({ supportsRunMode, supportsServerMode, serverNoun })
+                : undefined}
               disabledModes={{ run: !supportsRunMode, server: !supportsServerMode }}
+              serverNoun={serverNoun}
             />
           </DetachedModeRow>
         )}
@@ -2615,11 +2653,14 @@ function FlowOnboarding({
   flow,
   contextKey,
   onDismiss,
+  serverNoun,
 }: {
   flow?: OnboardingFlow;
   contextKey: string;
   onDismiss: () => void;
+  serverNoun: ServerNoun;
 }) {
+  const serverLabel = serverModeLabel(serverNoun);
   const [stepIndex, setStepIndex] = useState(0);
   const [position, setPosition] = useState<{
     top: number;
@@ -2634,13 +2675,13 @@ function FlowOnboarding({
         target: 'mode-switcher',
         eyebrow: 'Navigation guide',
         title: 'Switch between modes',
-        body: 'Use this segmented control to switch between Run mode and Server mode. Run mode starts Actor runs from Input, while Server mode keeps the Actor ready to serve requests.',
+        body: `Use this segmented control to switch between Run mode and ${serverLabel}. Run mode starts Actor runs from Input, while ${serverLabel} keeps the Actor ready to serve requests.`,
       },
       {
         target: 'operational-tabs',
         eyebrow: 'Navigation guide',
         title: 'Mode-specific tabs',
-        body: 'The tabs on the left contain the workflows for the selected mode. They update when you switch between Run mode and Server mode.',
+        body: `The tabs on the left contain the workflows for the selected mode. They update when you switch between Run mode and ${serverLabel}.`,
       },
       {
         target: 'developer-tabs',
@@ -2653,8 +2694,8 @@ function FlowOnboarding({
       {
         target: 'server-mode',
         eyebrow: 'New feature',
-        title: 'Meet Server mode',
-        body: 'Server mode keeps this Actor ready to receive HTTP requests. Use it when your integration needs an immediate response instead of starting a new run each time.',
+        title: `Meet ${serverLabel}`,
+        body: `${serverLabel} keeps this Actor ready to receive HTTP requests. Use it when your integration needs an immediate response instead of starting a new run each time.`,
       },
     ];
   const step = steps[Math.min(stepIndex, steps.length - 1)];
@@ -2686,7 +2727,8 @@ function FlowOnboarding({
       if (step.target === 'server-mode') {
         return [...document.querySelectorAll<HTMLElement>('[role="tab"]')].find((element) => {
           const rect = element.getBoundingClientRect();
-          return element.textContent?.trim() === 'Server mode' && rect.width > 0 && rect.height > 0;
+          const text = element.textContent?.trim();
+          return (text === serverLabel || text === serverNoun) && rect.width > 0 && rect.height > 0;
         });
       }
 
@@ -2834,6 +2876,8 @@ function VariantSelector({
   setSupportsServerMode,
   alwaysShowModes,
   setAlwaysShowModes,
+  serverNoun,
+  setServerNoun,
 }: {
   variant: NavigationVariant;
   onSelect: (variant: NavigationVariant) => void;
@@ -2851,6 +2895,8 @@ function VariantSelector({
   setSupportsServerMode: (supported: boolean) => void;
   alwaysShowModes: boolean;
   setAlwaysShowModes: (enabled: boolean) => void;
+  serverNoun: ServerNoun;
+  setServerNoun: (noun: ServerNoun) => void;
 }) {
   const selectedVariant = variantOptions.find((option) => option.id === variant) ?? variantOptions[0];
 
@@ -2895,6 +2941,39 @@ function VariantSelector({
             onSelect={() => onSelect(option.id)}
           >
             {option.label}
+          </Dropdown.Item>
+        ))}
+      </DropdownButton>
+      <DockDivider aria-hidden="true" />
+      <DropdownButton
+        buttonLabel={(
+          <TenancyDropdownLabel>
+            <span>{serverModeLabel(serverNoun)}</span>
+            <ChevronDownIcon size="16" aria-hidden="true" />
+          </TenancyDropdownLabel>
+        )}
+        width="132px"
+        buttonProps={{
+          size: 'extraLarge',
+          variant: 'tertiary',
+          color: 'primaryBlack',
+          className: 'control-center-select',
+          'aria-label': `Mode naming: ${serverModeLabel(serverNoun)}`,
+        } as React.ComponentProps<typeof DropdownButton>['buttonProps']}
+        contentProps={{
+          side: 'top',
+          align: 'start',
+          sideOffset: 4,
+          className: 'control-center-menu',
+        }}
+      >
+        {(['Server', 'Service'] as const).map((noun) => (
+          <Dropdown.Item
+            key={noun}
+            selected={serverNoun === noun}
+            onSelect={() => setServerNoun(noun)}
+          >
+            {serverModeLabel(noun)}
           </Dropdown.Item>
         ))}
       </DropdownButton>
@@ -2981,6 +3060,7 @@ function PrototypeInner() {
   const [supportsRunMode, setSupportsRunMode] = useState(true);
   const [supportsServerMode, setSupportsServerMode] = useState(true);
   const [alwaysShowModes, setAlwaysShowModes] = useState(false);
+  const [serverNoun, setServerNoun] = useState<ServerNoun>('Server');
   const [sidebarCompact, setSidebarCompact] = useState(false);
   const [currentView, setCurrentView] = useState<PrototypeView>('prototype');
 
@@ -3189,16 +3269,12 @@ function PrototypeInner() {
         setMode(nextMode);
         setActiveTab(nextMode === 'run' ? 'actor-input' : 'endpoints');
       }}
-      labels={variant === 'detached-above-labeled'
-        ? { run: 'Run', server: 'Server' }
-        : variant === 'detached-above-trailing-label'
-          ? { run: 'Run', server: 'Server' }
-        : { run: 'Run mode', server: 'Server mode' }}
-      tooltips={{
-        run: supportsRunMode ? runModeMessage : runModeUnsupportedMessage,
-        server: supportsServerMode ? serverModeMessage : serverModeUnsupportedMessage,
-      }}
+      labels={isDetachedAboveVariant(variant) && variant !== 'detached-above'
+        ? { run: 'Run', server: serverNoun }
+        : { run: 'Run mode', server: serverModeLabel(serverNoun) }}
+      tooltips={modeTooltipCopy({ supportsRunMode, supportsServerMode, serverNoun })}
       disabledModes={{ run: !supportsRunMode, server: !supportsServerMode }}
+      serverNoun={serverNoun}
       compact
     />
   ) : undefined;
@@ -3238,6 +3314,7 @@ function PrototypeInner() {
               supportsRunMode={supportsRunMode}
               supportsServerMode={supportsServerMode}
               alwaysShowModes={alwaysShowModes}
+              serverNoun={serverNoun}
             />
             <PlaceholderContent
               variant={variant}
@@ -3248,6 +3325,7 @@ function PrototypeInner() {
               setActiveTab={setActiveTab}
               supportsRunMode={supportsRunMode}
               supportsServerMode={supportsServerMode}
+              serverNoun={serverNoun}
             />
           </>
         )}
@@ -3255,6 +3333,7 @@ function PrototypeInner() {
       {currentView === 'prototype' && (
         <>
           <FlowOnboarding
+            serverNoun={serverNoun}
             flow={standbyFlowEnabled ? 'standby' : reshuffleFlowEnabled ? 'reshuffle' : undefined}
             contextKey={`${variant}:${mode}:${splitMode}:${activeTab}:${devMode}`}
             onDismiss={dismissFlows}
@@ -3276,6 +3355,8 @@ function PrototypeInner() {
             setSupportsServerMode={selectServerModeSupport}
             alwaysShowModes={alwaysShowModes}
             setAlwaysShowModes={setAlwaysShowModes}
+            serverNoun={serverNoun}
+            setServerNoun={setServerNoun}
           />
         </>
       )}
