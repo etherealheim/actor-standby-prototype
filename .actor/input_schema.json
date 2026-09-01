@@ -1,0 +1,7 @@
+{
+    "title": "Actor Servers navigation prototype",
+    "type": "object",
+    "schemaVersion": 1,
+    "description": "The prototype takes no input — open the Standby URL in a browser instead. Use ?option=1|2|3 to land on a specific navigation variant.",
+    "properties": {}
+}
