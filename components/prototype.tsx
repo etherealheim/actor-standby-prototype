@@ -1541,22 +1541,22 @@ const singleTenantRequestsTab = createDisabledTab(
   'Requests are unavailable in Single-tenant Server mode',
 );
 
-const multiTenantRunsTab = createDisabledTab(
-  { id: 'runs', title: 'Runs', Icon: PlayIcon, to: '#runs' },
-  'Runs are unavailable in Multi-tenant Server mode',
-);
-
+const runsTab: TabData = { id: 'runs', title: 'Runs', Icon: PlayIcon, to: '#runs' };
+const buildsTab: TabData = { id: 'builds', title: 'Builds', Icon: BuildsIcon, to: '#builds' };
 const integrationsTab: TabData = {
   id: 'integrations',
   title: 'Integrations',
   Icon: PuzzleIcon,
   to: '#integrations',
 };
+const tasksTab: TabData = { id: 'tasks', title: 'Saved tasks', Icon: TasksIcon, to: '#tasks' };
 
-const multiTenantIntegrationsTab = createDisabledTab(
-  integrationsTab,
-  'Integrations are unavailable in Multi-tenant Server mode',
-);
+/**
+ * In Multi-tenant Server mode the runs are shared and execute under the developer's
+ * account, so the developer sees them and everything hanging off them; a plain user
+ * doesn't. Developer view is what gives these four back.
+ */
+const multiTenantDeveloperTabIds = new Set(['runs', 'builds', 'integrations', 'tasks']);
 
 const singleTenantServerTabs: TabData[] = [
   { id: 'endpoints', title: 'Server', Icon: ApiIcon, to: '#endpoints' },
@@ -1576,21 +1576,21 @@ const createDisabledMultiTenantTab = (tab: TabData): TabData => createDisabledTa
 const multiTenantDevServerTabs: TabData[] = [
   { id: 'endpoints', title: 'Server', Icon: ApiIcon, to: '#endpoints' },
   { id: 'requests', title: 'Requests', Icon: PlayIcon, to: '#requests' },
-  multiTenantRunsTab,
-  { id: 'builds', title: 'Builds', Icon: BuildsIcon, to: '#builds' },
+  runsTab,
+  buildsTab,
   { id: 'monitoring', title: 'Monitoring', Icon: MonitoringIcon, to: '#monitoring' },
-  multiTenantIntegrationsTab,
-  { id: 'tasks', title: 'Saved tasks', Icon: TasksIcon, to: '#tasks' },
+  integrationsTab,
+  tasksTab,
 ];
 
 const multiTenantServerTabs: TabData[] = [
   { id: 'endpoints', title: 'Server', Icon: ApiIcon, to: '#endpoints' },
   { id: 'requests', title: 'Requests', Icon: PlayIcon, to: '#requests' },
-  multiTenantRunsTab,
-  createDisabledMultiTenantTab({ id: 'builds', title: 'Builds', Icon: BuildsIcon, to: '#builds' }),
+  createDisabledMultiTenantTab(runsTab),
+  createDisabledMultiTenantTab(buildsTab),
   { id: 'monitoring', title: 'Monitoring', Icon: MonitoringIcon, to: '#monitoring' },
-  multiTenantIntegrationsTab,
-  createDisabledMultiTenantTab({ id: 'tasks', title: 'Saved tasks', Icon: TasksIcon, to: '#tasks' }),
+  createDisabledMultiTenantTab(integrationsTab),
+  createDisabledMultiTenantTab(tasksTab),
 ];
 
 const detachedUseTab: TabData = {
@@ -3141,26 +3141,13 @@ function PrototypeInner() {
     const requestsBecomesDisabled = !nextMultiTenant
       && activeTab === 'requests'
       && (serverModeActive || variant === 'detached');
-    const runsBecomesDisabled = nextMultiTenant
-      && activeTab === 'runs'
-      && serverModeActive
-      && !restoreRunModeTabs;
     const developerTabBecomesDisabled = nextMultiTenant
       && !devMode
       && serverModeActive
-      && (activeTab === 'builds' || activeTab === 'tasks')
-      && !restoreRunModeTabs;
-    const integrationsBecomesDisabled = nextMultiTenant
-      && activeTab === 'integrations'
-      && serverModeActive
+      && multiTenantDeveloperTabIds.has(activeTab)
       && !restoreRunModeTabs;
 
-    if (
-      requestsBecomesDisabled
-      || runsBecomesDisabled
-      || developerTabBecomesDisabled
-      || integrationsBecomesDisabled
-    ) {
+    if (requestsBecomesDisabled || developerTabBecomesDisabled) {
       setActiveTab(variant === 'detached' ? 'use' : 'endpoints');
       if (variant === 'disabled') setMode('server');
     }
@@ -3184,7 +3171,7 @@ function PrototypeInner() {
       } else if (
         multiTenant
         && serverModeActive
-        && (activeTab === 'builds' || activeTab === 'tasks')
+        && multiTenantDeveloperTabIds.has(activeTab)
         && !runModeRestoresTabs(variant, supportsRunMode)
       ) {
         setActiveTab('endpoints');

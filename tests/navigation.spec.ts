@@ -53,17 +53,28 @@ test.describe('Integrations under multi-tenant', () => {
     expect(await tabStates(page)).toContain('Integrations');
   });
 
-  test('stays disabled in Developer view — it is a capability limit, not a dev gate', async ({ page }) => {
+  // The shared multi-tenant runs execute under the developer's account, so Developer
+  // view gives back the runs and everything hanging off them.
+  test('Developer view gives all four back', async ({ page }) => {
     await openPrototype(page, OPTION.detached);
     await setDock(page, { multiTenant: true, developer: true });
     await page.locator('[data-mode="server"]').click();
 
     const states = await tabStates(page);
-    expect(states).toContain('Integrations✗');
-    expect(states).toContain('Runs✗');
-    // Builds and Saved tasks are dev-gated, so Developer view brings them back.
-    expect(states).toContain('Builds');
-    expect(states).toContain('Saved tasks');
+    for (const title of ['Runs', 'Builds', 'Integrations', 'Saved tasks']) {
+      expect(states).toContain(title);
+    }
+  });
+
+  test('takes all four away again when Developer view is off', async ({ page }) => {
+    await openPrototype(page, OPTION.detached);
+    await setDock(page, { multiTenant: true, developer: false });
+    await page.locator('[data-mode="server"]').click();
+
+    const states = await tabStates(page);
+    for (const title of ['Runs', 'Builds', 'Integrations', 'Saved tasks']) {
+      expect(states).toContain(`${title}✗`);
+    }
   });
 
   test('moves off Integrations instead of stranding on it', async ({ page }) => {
@@ -107,15 +118,12 @@ test.describe('Option 3 — Disabled', () => {
     for (const title of runReachable) expect(states).toContain(title);
   });
 
-  test('Developer view still ungates Builds and Saved tasks', async ({ page }) => {
+  test('Developer view ungates all four on a server-only Actor', async ({ page }) => {
     await openPrototype(page, OPTION.disabled);
     await setDock(page, { multiTenant: true, run: false, server: true, developer: true });
 
     const states = await tabStates(page);
-    expect(states).toContain('Builds');
-    expect(states).toContain('Saved tasks');
-    expect(states).toContain('Runs✗');
-    expect(states).toContain('Integrations✗');
+    for (const title of runReachable) expect(states).toContain(title);
   });
 });
 
