@@ -1673,7 +1673,7 @@ const variantOptions: Array<{
   shortLabel?: string;
 }> = [
   { id: 'detached-above-labeled', number: 1, label: 'Detached' },
-  { id: 'inline-separated', number: 2, label: 'Inline separated' },
+  { id: 'inline-separated', number: 2, label: 'Inline' },
   { id: 'disabled', number: 3, label: 'Disabled' },
 ];
 
@@ -2987,9 +2987,10 @@ function VariantSelector({
         setValue={setSupportsServerMode}
       />
       <DockDivider aria-hidden="true" />
+      {/* "No hiding" is the dock wording for the alwaysShowModes behaviour. */}
       <DockCheckbox
         id="always-show-modes"
-        label="Always show modes"
+        label="No hiding"
         value={alwaysShowModes}
         setValue={setAlwaysShowModes}
       />

@@ -120,7 +120,7 @@ test.describe('Option 3 — Disabled', () => {
 });
 
 test.describe('Always show modes', () => {
-  for (const option of [OPTION.detached, OPTION.inlineSeparated] as const) {
+  for (const option of [OPTION.detached, OPTION.inline] as const) {
     test(`option ${option}: hides the switcher when off, disables it when on`, async ({ page }) => {
       await openPrototype(page, option);
 
@@ -216,10 +216,10 @@ test.describe('Mode naming select', () => {
   });
 
   test('renames the Server tab in options 2 and 3', async ({ page }) => {
-    for (const option of [OPTION.inlineSeparated, OPTION.disabled]) {
+    for (const option of [OPTION.inline, OPTION.disabled]) {
       await openPrototype(page, option);
       await setServerNoun(page, 'Service');
-      if (option === OPTION.inlineSeparated) await page.locator('[data-mode="server"]').click();
+      if (option === OPTION.inline) await page.locator('[data-mode="server"]').click();
 
       expect(await tabStates(page)).toContain('Service');
       expect(await tabStates(page)).not.toContain('Server');
