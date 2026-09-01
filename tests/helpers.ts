@@ -1,6 +1,7 @@
 import { expect, type Page } from '@playwright/test';
 
-export const OPTION = { compactServer: 1, inlineSeparated: 2, disabled: 3 } as const;
+/** Dock option numbers → variant ids: 1 detached-above-labeled, 2 inline-separated, 3 disabled. */
+export const OPTION = { detached: 1, inlineSeparated: 2, disabled: 3 } as const;
 
 export type DockState = {
   run?: boolean;

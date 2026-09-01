@@ -10,15 +10,15 @@ import {
   tabStates,
 } from './helpers';
 
-test.describe('Option 1 — Compact server', () => {
-  test('is labelled Compact server in the dock', async ({ page }) => {
-    await openPrototype(page, OPTION.compactServer);
+test.describe('Option 1 — Detached', () => {
+  test('is labelled Detached in the dock', async ({ page }) => {
+    await openPrototype(page, OPTION.detached);
     await expect(page.locator('aside[aria-label="Navigation design options"]'))
-      .toContainText('Compact server');
+      .toContainText('Detached');
   });
 
   test('header meta row lines up with the nav row gutter, switcher or not', async ({ page }) => {
-    await openPrototype(page, OPTION.compactServer);
+    await openPrototype(page, OPTION.detached);
 
     const gutters = async () => page.evaluate(() => {
       const left = (el: Element | null | undefined) => (el ? Math.round(el.getBoundingClientRect().left) : null);
@@ -43,7 +43,7 @@ test.describe('Option 1 — Compact server', () => {
 
 test.describe('Integrations under multi-tenant', () => {
   test('is disabled in Server mode and enabled in Run mode', async ({ page }) => {
-    await openPrototype(page, OPTION.compactServer);
+    await openPrototype(page, OPTION.detached);
     await setDock(page, { multiTenant: true });
 
     await page.locator('[data-mode="server"]').click();
@@ -54,7 +54,7 @@ test.describe('Integrations under multi-tenant', () => {
   });
 
   test('stays disabled in Developer view — it is a capability limit, not a dev gate', async ({ page }) => {
-    await openPrototype(page, OPTION.compactServer);
+    await openPrototype(page, OPTION.detached);
     await setDock(page, { multiTenant: true, developer: true });
     await page.locator('[data-mode="server"]').click();
 
@@ -67,7 +67,7 @@ test.describe('Integrations under multi-tenant', () => {
   });
 
   test('moves off Integrations instead of stranding on it', async ({ page }) => {
-    await openPrototype(page, OPTION.compactServer);
+    await openPrototype(page, OPTION.detached);
     await setDock(page, { multiTenant: false });
     await page.locator('[data-mode="server"]').click();
     await page.locator('[role="tab"]:not([data-mode])', { hasText: 'Integrations' }).click();
@@ -120,7 +120,7 @@ test.describe('Option 3 — Disabled', () => {
 });
 
 test.describe('Always show modes', () => {
-  for (const option of [OPTION.compactServer, OPTION.inlineSeparated] as const) {
+  for (const option of [OPTION.detached, OPTION.inlineSeparated] as const) {
     test(`option ${option}: hides the switcher when off, disables it when on`, async ({ page }) => {
       await openPrototype(page, option);
 
@@ -166,7 +166,7 @@ test.describe('Always show modes', () => {
 
 test.describe('Mode tooltips', () => {
   test('name the mode consistently and never say Standby mode', async ({ page }) => {
-    await openPrototype(page, OPTION.compactServer);
+    await openPrototype(page, OPTION.detached);
     await page.locator('[data-mode="server"]').hover();
 
     const tooltip = page.locator('a[href*="docs.apify.com"]').locator('..');
@@ -176,7 +176,7 @@ test.describe('Mode tooltips', () => {
   });
 
   test('link the mode name inline, on one line', async ({ page }) => {
-    await openPrototype(page, OPTION.compactServer);
+    await openPrototype(page, OPTION.detached);
     await page.locator('[data-mode="run"]').hover();
 
     const link = page.locator('a[href*="docs.apify.com"]');
@@ -188,7 +188,7 @@ test.describe('Mode tooltips', () => {
   });
 
   test('stay open long enough to reach the docs link', async ({ page }) => {
-    await openPrototype(page, OPTION.compactServer);
+    await openPrototype(page, OPTION.detached);
     await page.locator('[data-mode="server"]').hover();
 
     const link = page.locator('a[href*="docs.apify.com"]');
@@ -201,7 +201,7 @@ test.describe('Mode tooltips', () => {
 
 test.describe('Mode naming select', () => {
   test('renames the switcher, the tab and the placeholder in option 1', async ({ page }) => {
-    await openPrototype(page, OPTION.compactServer);
+    await openPrototype(page, OPTION.detached);
     await page.locator('[data-mode="server"]').click();
 
     expect((await modeSwitcher(page))!.map((s) => s.label)).toEqual(['Run', 'Server']);
@@ -227,7 +227,7 @@ test.describe('Mode naming select', () => {
   });
 
   test('carries the naming into the tooltip and its docs link', async ({ page }) => {
-    await openPrototype(page, OPTION.compactServer);
+    await openPrototype(page, OPTION.detached);
     await setServerNoun(page, 'Service');
     await page.locator('[data-mode="server"]').hover();
 

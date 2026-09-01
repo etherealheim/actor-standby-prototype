@@ -1672,12 +1672,7 @@ const variantOptions: Array<{
   label: string;
   shortLabel?: string;
 }> = [
-  {
-    id: 'detached-above-labeled',
-    number: 1,
-    label: 'Detached above compact',
-    shortLabel: 'Compact server',
-  },
+  { id: 'detached-above-labeled', number: 1, label: 'Detached' },
   { id: 'inline-separated', number: 2, label: 'Inline separated' },
   { id: 'disabled', number: 3, label: 'Disabled' },
 ];
