@@ -613,12 +613,14 @@ const HeaderActions = styled.div`
   gap: 8px;
 `;
 
-const MetaRow = styled.div<{ $alignToPageGutter?: boolean }>`
+const MetaRow = styled.div`
   display: flex;
   align-items: center;
   gap: 8px;
   height: 24px;
-  padding-left: ${({ $alignToPageGutter }) => ($alignToPageGutter ? '8px' : '26px')};
+  /* Lines the first meta item up with the first item of the nav row below (page gutter),
+     whether that first item is the mode switcher or the Protected Actor tag. */
+  padding-left: 8px;
 `;
 
 const TrailingLabeledModeControl = styled.div`
@@ -1445,6 +1447,23 @@ const FlowStep = styled.span`
   line-height: 16px;
 `;
 
+// The tooltip content wrapper is a flex container, so a bare inline <a> becomes a flex
+// item and breaks onto its own line. Keeping the copy in one span makes it a single flex
+// item, and the text + link flow inline inside it again.
+const TooltipCopy = styled.span`
+  display: block;
+`;
+
+const TooltipDocsLink = styled.a`
+  && {
+    display: inline;
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    white-space: nowrap;
+  }
+`;
+
 const Execute = styled(Button)`
   position: absolute;
   top: 12px;
@@ -1483,6 +1502,17 @@ const runTabs: TabData[] = [
   { id: 'tasks', title: 'Saved tasks', Icon: TasksIcon, to: '#tasks' },
 ];
 
+const runTabById = new Map(runTabs.map((tab) => [tab.id, tab]));
+
+// The "Disabled" variant merges both modes into one tab bar. Tabs that Run mode can
+// reach stay enabled there even when Multi-tenant Server mode would disable them —
+// they are only unreachable on a server-only Actor.
+const runModeRestorableTabIds = new Set(['runs', 'builds', 'integrations', 'tasks']);
+
+const runModeRestoresTabs = (variant: NavigationVariant, supportsRunMode: boolean) => (
+  variant === 'disabled' && supportsRunMode
+);
+
 const createDisabledTab = (tab: TabData, ariaLabel: string): TabData => ({
   ...tab,
   disabled: true,
@@ -1515,6 +1545,18 @@ const multiTenantRunsTab = createDisabledTab(
   'Runs are unavailable in Multi-tenant Server mode',
 );
 
+const integrationsTab: TabData = {
+  id: 'integrations',
+  title: 'Integrations',
+  Icon: PuzzleIcon,
+  to: '#integrations',
+};
+
+const multiTenantIntegrationsTab = createDisabledTab(
+  integrationsTab,
+  'Integrations are unavailable in Multi-tenant Server mode',
+);
+
 const singleTenantServerTabs: TabData[] = [
   { id: 'endpoints', title: 'Server', Icon: ApiIcon, to: '#endpoints' },
   singleTenantRequestsTab,
@@ -1536,7 +1578,7 @@ const multiTenantDevServerTabs: TabData[] = [
   multiTenantRunsTab,
   { id: 'builds', title: 'Builds', Icon: BuildsIcon, to: '#builds' },
   { id: 'monitoring', title: 'Monitoring', Icon: MonitoringIcon, to: '#monitoring' },
-  { id: 'integrations', title: 'Integrations', Icon: PuzzleIcon, to: '#integrations' },
+  multiTenantIntegrationsTab,
   { id: 'tasks', title: 'Saved tasks', Icon: TasksIcon, to: '#tasks' },
 ];
 
@@ -1546,7 +1588,7 @@ const multiTenantServerTabs: TabData[] = [
   multiTenantRunsTab,
   createDisabledMultiTenantTab({ id: 'builds', title: 'Builds', Icon: BuildsIcon, to: '#builds' }),
   { id: 'monitoring', title: 'Monitoring', Icon: MonitoringIcon, to: '#monitoring' },
-  { id: 'integrations', title: 'Integrations', Icon: PuzzleIcon, to: '#integrations' },
+  multiTenantIntegrationsTab,
   createDisabledMultiTenantTab({ id: 'tasks', title: 'Saved tasks', Icon: TasksIcon, to: '#tasks' }),
 ];
 
@@ -1568,10 +1610,42 @@ const developerUtilityTabs = developerTabs.filter(({ id }) => id !== 'source');
 
 const developerTabIds = new Set(developerTabs.map(({ id }) => id));
 
+const runModeMessage =
+  'Run mode uses Apify Input to configure and start Actor runs.';
+const serverModeMessage =
+  'Server mode keeps the Actor ready to serve requests.';
 const runModeUnsupportedMessage =
-  'This Actor doesn’t support Run mode. Run mode lets you configure Input and start the Actor as a run.';
+  `This Actor doesn’t support Run mode. ${runModeMessage}`;
 const serverModeUnsupportedMessage =
-  'This Actor doesn’t support Server mode. Server mode keeps the Actor ready to serve requests from Standby mode.';
+  `This Actor doesn’t support Server mode. ${serverModeMessage}`;
+
+const modeDocsUrls: Record<Mode, string> = {
+  run: 'https://docs.apify.com/platform/actors/running',
+  server: 'https://docs.apify.com/platform/actors/running/standby',
+};
+
+const modeDocsLabels: Record<Mode, string> = {
+  run: 'Run mode',
+  server: 'Server mode',
+};
+
+// Links the mode name inside the tooltip copy rather than appending a "Learn more".
+const withDocsLink = (text: string, mode: Mode) => {
+  const label = modeDocsLabels[mode];
+  const index = text.indexOf(label);
+
+  if (index === -1) return text;
+
+  return (
+    <TooltipCopy>
+      {text.slice(0, index)}
+      <TooltipDocsLink href={modeDocsUrls[mode]} target="_blank" rel="noreferrer">
+        {label}
+      </TooltipDocsLink>
+      {text.slice(index + label.length)}
+    </TooltipCopy>
+  );
+};
 
 const variantOptions: Array<{
   id: NavigationVariant;
@@ -1583,7 +1657,7 @@ const variantOptions: Array<{
     id: 'detached-above-labeled',
     number: 1,
     label: 'Detached above compact',
-    shortLabel: 'Compact service',
+    shortLabel: 'Compact server',
   },
   { id: 'inline-separated', number: 2, label: 'Inline separated' },
   { id: 'disabled', number: 3, label: 'Disabled' },
@@ -1810,7 +1884,7 @@ function ActorHeader({
         </HeaderActions>
       </TitleRow>
 
-      <MetaRow $alignToPageGutter={Boolean(modeControl)}>
+      <MetaRow>
         {modeControl}
         {modeControl && <Dot aria-hidden="true" />}
         <Tag aria-label="Protected Actor" size="regular" variant="success" LeadingIcon={ShieldIcon} />
@@ -1900,9 +1974,10 @@ function SegmentedModeControl({
 
     return tooltip ? (
       <Tooltip
-        content={tooltip}
+        content={withDocsLink(tooltip, segmentMode)}
         placement="bottom"
-        delayShow={disabled ? 200 : 3000}
+        delayShow={disabled ? 200 : 500}
+        delayHide={300}
         showInPortal
       >
         {segment}
@@ -1991,9 +2066,10 @@ function DedicatedModeControl({
 
     return (
       <Tooltip
-        content={tooltip}
+        content={withDocsLink(tooltip, tabMode)}
         placement="bottom"
-        delayShow={disabled ? 200 : 3000}
+        delayShow={disabled ? 200 : 500}
+        delayHide={300}
         showInPortal
       >
         {tab}
@@ -2175,6 +2251,7 @@ function ModeNavigation({
   devMode,
   supportsRunMode,
   supportsServerMode,
+  alwaysShowModes,
 }: {
   mode: Mode;
   setMode: (mode: Mode) => void;
@@ -2187,6 +2264,7 @@ function ModeNavigation({
   devMode: boolean;
   supportsRunMode: boolean;
   supportsServerMode: boolean;
+  alwaysShowModes: boolean;
 }) {
   const [staggerMode, setStaggerMode] = useState<Mode>();
   const [staggerSplitMode, setStaggerSplitMode] = useState<SplitMode>();
@@ -2295,12 +2373,8 @@ function ModeNavigation({
   };
 
   const modeTooltips = {
-    run: supportsRunMode
-      ? 'Run mode uses Apify Input to configure and start Actor runs.'
-      : runModeUnsupportedMessage,
-    server: supportsServerMode
-      ? 'Server mode serves requests from the Actor’s Standby mode.'
-      : serverModeUnsupportedMessage,
+    run: supportsRunMode ? runModeMessage : runModeUnsupportedMessage,
+    server: supportsServerMode ? serverModeMessage : serverModeUnsupportedMessage,
   };
 
   const inlineModeControl = (
@@ -2308,14 +2382,14 @@ function ModeNavigation({
       mode={mode}
       setMode={selectMode}
       labels={variant === 'inline-separated'
-        ? { run: 'Run', server: 'Service' }
+        ? { run: 'Run', server: 'Server' }
         : { run: 'Run mode', server: 'Server mode' }}
       tooltips={modeTooltips}
       disabledModes={{ run: !supportsRunMode, server: !supportsServerMode }}
     />
   );
 
-  if (runOnly && variant !== 'disabled') {
+  if (runOnly && variant !== 'disabled' && !alwaysShowModes) {
     return (
       <TabsBar>
         {renderTabs(runTabs, 'run-only')}
@@ -2353,16 +2427,37 @@ function ModeNavigation({
     const serverTabsWithMcp = serverTabs.flatMap((tab) => (
       tab.id === 'endpoints' ? [tab, mcpTab] : [tab]
     ));
+    const runPrimarySource = runTabs.filter(({ id }) => id === 'actor-input');
+    const serverPrimarySource = serverTabsWithMcp.filter(({ id }) => (
+      id === 'endpoints' || id === 'mcp' || id === 'requests'
+    ));
+    // With "Always show modes" the mode-specific tabs stay in the bar and read as
+    // disabled instead of disappearing when the Actor doesn't support that mode.
     const runPrimaryTabs = supportsRunMode
-      ? runTabs.filter(({ id }) => id === 'actor-input')
-      : [];
+      ? runPrimarySource
+      : alwaysShowModes
+        ? runPrimarySource.map((tab) => createDisabledTab(
+            tab,
+            `${tab.title} requires Run mode, which this Actor doesn’t support`,
+          ))
+        : [];
     const serverPrimaryTabs = supportsServerMode
-      ? serverTabsWithMcp.filter(({ id }) => (
-          id === 'endpoints' || id === 'mcp' || id === 'requests'
-        ))
-      : [];
+      ? serverPrimarySource
+      : alwaysShowModes
+        ? serverPrimarySource.map((tab) => createDisabledTab(
+            tab,
+            `${tab.title} requires Server mode, which this Actor doesn’t support`,
+          ))
+        : [];
+    const restoreRunModeTabs = runModeRestoresTabs(variant, supportsRunMode);
     const sharedTabs = supportsServerMode
-      ? serverTabs.filter(({ id }) => id !== 'endpoints' && id !== 'requests')
+      ? serverTabs
+        .filter(({ id }) => id !== 'endpoints' && id !== 'requests')
+        .map((tab) => (
+          restoreRunModeTabs && runModeRestorableTabIds.has(String(tab.id))
+            ? runTabById.get(tab.id) ?? tab
+            : tab
+        ))
       : supportsRunMode
         ? runTabs.filter(({ id }) => id !== 'actor-input')
         : [];
@@ -2372,7 +2467,7 @@ function ModeNavigation({
       <TabsBar>
         {renderTabs(
           tabs,
-          `disabled:${supportsRunMode}:${supportsServerMode}:${multiTenant}:${devMode}`,
+          `disabled:${supportsRunMode}:${supportsServerMode}:${alwaysShowModes}:${multiTenant}:${devMode}`,
         )}
       </TabsBar>
     );
@@ -2492,12 +2587,8 @@ function PlaceholderContent({
               setMode={selectDetachedMode}
               labels={{ run: 'Run mode', server: 'Server mode' }}
               tooltips={!supportsRunMode || !supportsServerMode ? {
-                run: supportsRunMode
-                  ? 'Run mode uses Apify Input to configure and start Actor runs.'
-                  : runModeUnsupportedMessage,
-                server: supportsServerMode
-                  ? 'Server mode serves requests from the Actor’s Standby mode.'
-                  : serverModeUnsupportedMessage,
+                run: supportsRunMode ? runModeMessage : runModeUnsupportedMessage,
+                server: supportsServerMode ? serverModeMessage : serverModeUnsupportedMessage,
               } : undefined}
               disabledModes={{ run: !supportsRunMode, server: !supportsServerMode }}
             />
@@ -2741,6 +2832,8 @@ function VariantSelector({
   setSupportsRunMode,
   supportsServerMode,
   setSupportsServerMode,
+  alwaysShowModes,
+  setAlwaysShowModes,
 }: {
   variant: NavigationVariant;
   onSelect: (variant: NavigationVariant) => void;
@@ -2756,6 +2849,8 @@ function VariantSelector({
   setSupportsRunMode: (supported: boolean) => void;
   supportsServerMode: boolean;
   setSupportsServerMode: (supported: boolean) => void;
+  alwaysShowModes: boolean;
+  setAlwaysShowModes: (enabled: boolean) => void;
 }) {
   const selectedVariant = variantOptions.find((option) => option.id === variant) ?? variantOptions[0];
 
@@ -2818,6 +2913,13 @@ function VariantSelector({
         setValue={setSupportsServerMode}
       />
       <DockDivider aria-hidden="true" />
+      <DockCheckbox
+        id="always-show-modes"
+        label="Always show modes"
+        value={alwaysShowModes}
+        setValue={setAlwaysShowModes}
+      />
+      <DockDivider aria-hidden="true" />
       <DropdownButton
         buttonLabel={(
           <TenancyDropdownLabel>
@@ -2878,6 +2980,7 @@ function PrototypeInner() {
   const [devMode, setDevMode] = useState(false);
   const [supportsRunMode, setSupportsRunMode] = useState(true);
   const [supportsServerMode, setSupportsServerMode] = useState(true);
+  const [alwaysShowModes, setAlwaysShowModes] = useState(false);
   const [sidebarCompact, setSidebarCompact] = useState(false);
   const [currentView, setCurrentView] = useState<PrototypeView>('prototype');
 
@@ -2958,18 +3061,30 @@ function PrototypeInner() {
       || (isInlineVariant(variant) && mode === 'server')
       || (variant === 'split' && splitMode === 'server')
       || (variant === 'detached' && mode === 'server');
+    const restoreRunModeTabs = runModeRestoresTabs(variant, supportsRunMode);
     const requestsBecomesDisabled = !nextMultiTenant
       && activeTab === 'requests'
       && (serverModeActive || variant === 'detached');
     const runsBecomesDisabled = nextMultiTenant
       && activeTab === 'runs'
-      && serverModeActive;
+      && serverModeActive
+      && !restoreRunModeTabs;
     const developerTabBecomesDisabled = nextMultiTenant
       && !devMode
       && serverModeActive
-      && (activeTab === 'builds' || activeTab === 'tasks');
+      && (activeTab === 'builds' || activeTab === 'tasks')
+      && !restoreRunModeTabs;
+    const integrationsBecomesDisabled = nextMultiTenant
+      && activeTab === 'integrations'
+      && serverModeActive
+      && !restoreRunModeTabs;
 
-    if (requestsBecomesDisabled || runsBecomesDisabled || developerTabBecomesDisabled) {
+    if (
+      requestsBecomesDisabled
+      || runsBecomesDisabled
+      || developerTabBecomesDisabled
+      || integrationsBecomesDisabled
+    ) {
       setActiveTab(variant === 'detached' ? 'use' : 'endpoints');
       if (variant === 'disabled') setMode('server');
     }
@@ -2994,6 +3109,7 @@ function PrototypeInner() {
         multiTenant
         && serverModeActive
         && (activeTab === 'builds' || activeTab === 'tasks')
+        && !runModeRestoresTabs(variant, supportsRunMode)
       ) {
         setActiveTab('endpoints');
         if (variant === 'disabled') setMode('server');
@@ -3079,12 +3195,8 @@ function PrototypeInner() {
           ? { run: 'Run', server: 'Server' }
         : { run: 'Run mode', server: 'Server mode' }}
       tooltips={{
-        run: supportsRunMode
-          ? 'Run mode uses Apify Input to configure and start Actor runs.'
-          : runModeUnsupportedMessage,
-        server: supportsServerMode
-          ? 'Server mode serves requests from the Actor’s Standby mode.'
-          : serverModeUnsupportedMessage,
+        run: supportsRunMode ? runModeMessage : runModeUnsupportedMessage,
+        server: supportsServerMode ? serverModeMessage : serverModeUnsupportedMessage,
       }}
       disabledModes={{ run: !supportsRunMode, server: !supportsServerMode }}
       compact
@@ -3093,7 +3205,7 @@ function PrototypeInner() {
 
   const headerModeControl = (
     headerModeSwitcher
-    && !(supportsRunMode && !supportsServerMode)
+    && (alwaysShowModes || !(supportsRunMode && !supportsServerMode))
   ) ? variant === 'detached-above-trailing-label' ? (
     <TrailingLabeledModeControl>
       {headerModeSwitcher}
@@ -3125,6 +3237,7 @@ function PrototypeInner() {
               devMode={devMode}
               supportsRunMode={supportsRunMode}
               supportsServerMode={supportsServerMode}
+              alwaysShowModes={alwaysShowModes}
             />
             <PlaceholderContent
               variant={variant}
@@ -3161,6 +3274,8 @@ function PrototypeInner() {
             setSupportsRunMode={selectRunModeSupport}
             supportsServerMode={supportsServerMode}
             setSupportsServerMode={selectServerModeSupport}
+            alwaysShowModes={alwaysShowModes}
+            setAlwaysShowModes={setAlwaysShowModes}
           />
         </>
       )}
