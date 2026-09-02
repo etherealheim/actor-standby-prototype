@@ -1731,6 +1731,20 @@ const isDetachedVariant = (variant: NavigationVariant) => (
   variant === 'detached'
 );
 
+/**
+ * What the endpoints tab is called, which depends on the variant.
+ *
+ * Inline puts the mode switcher segment immediately beside the tabs, so the segment
+ * already carries the mode noun — the tab takes the other word rather than repeating
+ * it ("Service" mode → a "Server" tab, "Server" mode → an "Endpoints" tab). Detached
+ * keeps the switcher up in the header, where there is nothing to collide with.
+ */
+const endpointsTabTitle = (variant: NavigationVariant, serverNoun: ServerNoun) => {
+  if (variant === 'detached-above-labeled') return 'Endpoints';
+  if (variant === 'inline-separated') return serverNoun === 'Service' ? 'Server' : 'Endpoints';
+  return serverNoun;
+};
+
 function SidebarItem({
   label,
   Icon,
@@ -2346,16 +2360,12 @@ function ModeNavigation({
       : singleTenantServerTabs,
     serverNoun,
   );
-  const visibleServerTabs = variant === 'detached-above-labeled'
+  const visibleServerTabs = variant === 'detached-above-labeled' || variant === 'inline-separated'
     ? serverTabs.flatMap((tab) => (
         tab.id === 'endpoints'
-          ? [{ ...tab, title: 'Endpoints' }, mcpTab]
+          ? [{ ...tab, title: endpointsTabTitle(variant, serverNoun) }, mcpTab]
           : [tab]
       ))
-    : variant === 'inline-separated'
-      ? serverTabs.flatMap((tab) => (
-          tab.id === 'endpoints' ? [tab, mcpTab] : [tab]
-        ))
     : serverTabs;
 
   const runOnly = supportsRunMode && !supportsServerMode;
@@ -2599,7 +2609,7 @@ function PlaceholderContent({
     ? splitMode === 'input' ? 'Run mode' : serverLabel
     : mode === 'run' ? 'Run mode' : serverLabel;
   const tabTitle = activeTab === 'endpoints'
-    ? variant === 'detached-above-labeled' ? 'Endpoints' : serverNoun
+    ? endpointsTabTitle(variant, serverNoun)
     : activeTab === 'server' || activeTab === 'standby'
       ? serverLabel
       : tabTitles[activeTab] ?? 'Content';

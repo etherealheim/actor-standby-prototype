@@ -223,15 +223,39 @@ test.describe('Mode naming select', () => {
     expect(await placeholderText(page)).toContain('Server mode');
   });
 
-  test('renames the Server tab in options 2 and 3', async ({ page }) => {
-    for (const option of [OPTION.inline, OPTION.disabled]) {
-      await openPrototype(page, option);
-      await setServerNoun(page, 'Service');
-      if (option === OPTION.inline) await page.locator('[data-mode="server"]').click();
+  // In Inline the switcher segment sits right beside the tabs, so the two can't both
+  // carry the mode noun — the tab takes whichever word the switcher isn't using.
+  test('option 2 swaps the endpoints tab against the switcher label', async ({ page }) => {
+    await openPrototype(page, OPTION.inline);
+    await setServerNoun(page, 'Server');
+    await page.locator('[data-mode="server"]').click();
 
-      expect(await tabStates(page)).toContain('Service');
-      expect(await tabStates(page)).not.toContain('Server');
+    expect((await modeSwitcher(page))!.map((s) => s.label)).toEqual(['Run', 'Server']);
+    expect(await tabStates(page)).toContain('Endpoints');
+    expect(await placeholderText(page)).toContain('Endpoints content');
+
+    await setServerNoun(page, 'Service');
+    expect((await modeSwitcher(page))!.map((s) => s.label)).toEqual(['Run', 'Service']);
+    expect(await tabStates(page)).toContain('Server');
+    expect(await placeholderText(page)).toContain('Server content');
+  });
+
+  test('option 1 always calls it Endpoints, switcher noun or not', async ({ page }) => {
+    await openPrototype(page, OPTION.detached);
+    await page.locator('[data-mode="server"]').click();
+
+    for (const noun of ['Server', 'Service'] as const) {
+      await setServerNoun(page, noun);
+      expect(await tabStates(page)).toContain('Endpoints');
     }
+  });
+
+  test('renames the Server tab in option 3', async ({ page }) => {
+    await openPrototype(page, OPTION.disabled);
+    await setServerNoun(page, 'Service');
+
+    expect(await tabStates(page)).toContain('Service');
+    expect(await tabStates(page)).not.toContain('Server');
   });
 
   test('carries the naming into the tooltip and its docs link', async ({ page }) => {
