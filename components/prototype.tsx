@@ -78,6 +78,7 @@ type NavigationVariant =
   | 'detached-above'
   | 'detached-above-labeled'
   | 'detached-above-trailing-label';
+type ServerNoun = 'Server' | 'Service';
 type OnboardingFlow = 'standby' | 'reshuffle';
 type PrototypeView = 'prototype' | 'actor-info';
 
@@ -613,12 +614,14 @@ const HeaderActions = styled.div`
   gap: 8px;
 `;
 
-const MetaRow = styled.div<{ $alignToPageGutter?: boolean }>`
+const MetaRow = styled.div`
   display: flex;
   align-items: center;
   gap: 8px;
   height: 24px;
-  padding-left: ${({ $alignToPageGutter }) => ($alignToPageGutter ? '8px' : '26px')};
+  /* Lines the first meta item up with the first item of the nav row below (page gutter),
+     whether that first item is the mode switcher or the Protected Actor tag. */
+  padding-left: 8px;
 `;
 
 const TrailingLabeledModeControl = styled.div`
@@ -1445,6 +1448,23 @@ const FlowStep = styled.span`
   line-height: 16px;
 `;
 
+// The tooltip content wrapper is a flex container, so a bare inline <a> becomes a flex
+// item and breaks onto its own line. Keeping the copy in one span makes it a single flex
+// item, and the text + link flow inline inside it again.
+const TooltipCopy = styled.span`
+  display: block;
+`;
+
+const TooltipDocsLink = styled.a`
+  && {
+    display: inline;
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    white-space: nowrap;
+  }
+`;
+
 const Execute = styled(Button)`
   position: absolute;
   top: 12px;
@@ -1483,6 +1503,17 @@ const runTabs: TabData[] = [
   { id: 'tasks', title: 'Saved tasks', Icon: TasksIcon, to: '#tasks' },
 ];
 
+const runTabById = new Map(runTabs.map((tab) => [tab.id, tab]));
+
+// The "Disabled" variant merges both modes into one tab bar. Tabs that Run mode can
+// reach stay enabled there even when Multi-tenant Server mode would disable them —
+// they are only unreachable on a server-only Actor.
+const runModeRestorableTabIds = new Set(['runs', 'builds', 'integrations', 'tasks']);
+
+const runModeRestoresTabs = (variant: NavigationVariant, supportsRunMode: boolean) => (
+  variant === 'disabled' && supportsRunMode
+);
+
 const createDisabledTab = (tab: TabData, ariaLabel: string): TabData => ({
   ...tab,
   disabled: true,
@@ -1510,10 +1541,22 @@ const singleTenantRequestsTab = createDisabledTab(
   'Requests are unavailable in Single-tenant Server mode',
 );
 
-const multiTenantRunsTab = createDisabledTab(
-  { id: 'runs', title: 'Runs', Icon: PlayIcon, to: '#runs' },
-  'Runs are unavailable in Multi-tenant Server mode',
-);
+const runsTab: TabData = { id: 'runs', title: 'Runs', Icon: PlayIcon, to: '#runs' };
+const buildsTab: TabData = { id: 'builds', title: 'Builds', Icon: BuildsIcon, to: '#builds' };
+const integrationsTab: TabData = {
+  id: 'integrations',
+  title: 'Integrations',
+  Icon: PuzzleIcon,
+  to: '#integrations',
+};
+const tasksTab: TabData = { id: 'tasks', title: 'Saved tasks', Icon: TasksIcon, to: '#tasks' };
+
+/**
+ * In Multi-tenant Server mode the runs are shared and execute under the developer's
+ * account, so the developer sees them and everything hanging off them; a plain user
+ * doesn't. Developer view is what gives these four back.
+ */
+const multiTenantDeveloperTabIds = new Set(['runs', 'builds', 'integrations', 'tasks']);
 
 const singleTenantServerTabs: TabData[] = [
   { id: 'endpoints', title: 'Server', Icon: ApiIcon, to: '#endpoints' },
@@ -1533,21 +1576,21 @@ const createDisabledMultiTenantTab = (tab: TabData): TabData => createDisabledTa
 const multiTenantDevServerTabs: TabData[] = [
   { id: 'endpoints', title: 'Server', Icon: ApiIcon, to: '#endpoints' },
   { id: 'requests', title: 'Requests', Icon: PlayIcon, to: '#requests' },
-  multiTenantRunsTab,
-  { id: 'builds', title: 'Builds', Icon: BuildsIcon, to: '#builds' },
+  runsTab,
+  buildsTab,
   { id: 'monitoring', title: 'Monitoring', Icon: MonitoringIcon, to: '#monitoring' },
-  { id: 'integrations', title: 'Integrations', Icon: PuzzleIcon, to: '#integrations' },
-  { id: 'tasks', title: 'Saved tasks', Icon: TasksIcon, to: '#tasks' },
+  integrationsTab,
+  tasksTab,
 ];
 
 const multiTenantServerTabs: TabData[] = [
   { id: 'endpoints', title: 'Server', Icon: ApiIcon, to: '#endpoints' },
   { id: 'requests', title: 'Requests', Icon: PlayIcon, to: '#requests' },
-  multiTenantRunsTab,
-  createDisabledMultiTenantTab({ id: 'builds', title: 'Builds', Icon: BuildsIcon, to: '#builds' }),
+  createDisabledMultiTenantTab(runsTab),
+  createDisabledMultiTenantTab(buildsTab),
   { id: 'monitoring', title: 'Monitoring', Icon: MonitoringIcon, to: '#monitoring' },
-  { id: 'integrations', title: 'Integrations', Icon: PuzzleIcon, to: '#integrations' },
-  createDisabledMultiTenantTab({ id: 'tasks', title: 'Saved tasks', Icon: TasksIcon, to: '#tasks' }),
+  createDisabledMultiTenantTab(integrationsTab),
+  createDisabledMultiTenantTab(tasksTab),
 ];
 
 const detachedUseTab: TabData = {
@@ -1568,10 +1611,60 @@ const developerUtilityTabs = developerTabs.filter(({ id }) => id !== 'source');
 
 const developerTabIds = new Set(developerTabs.map(({ id }) => id));
 
+const runModeMessage =
+  'Run mode uses Apify Input to configure and start Actor runs.';
+const serverModeLabel = (noun: ServerNoun) => `${noun} mode`;
+const serverModeMessage = (noun: ServerNoun) =>
+  `${serverModeLabel(noun)} keeps the Actor ready to serve requests.`;
 const runModeUnsupportedMessage =
-  'This Actor doesn’t support Run mode. Run mode lets you configure Input and start the Actor as a run.';
-const serverModeUnsupportedMessage =
-  'This Actor doesn’t support Server mode. Server mode keeps the Actor ready to serve requests from Standby mode.';
+  `This Actor doesn’t support Run mode. ${runModeMessage}`;
+const serverModeUnsupportedMessage = (noun: ServerNoun) =>
+  `This Actor doesn’t support ${serverModeLabel(noun)}. ${serverModeMessage(noun)}`;
+
+const modeTooltipCopy = (
+  { supportsRunMode, supportsServerMode, serverNoun }:
+  { supportsRunMode: boolean; supportsServerMode: boolean; serverNoun: ServerNoun },
+) => ({
+  run: supportsRunMode ? runModeMessage : runModeUnsupportedMessage,
+  server: supportsServerMode ? serverModeMessage(serverNoun) : serverModeUnsupportedMessage(serverNoun),
+});
+
+/** Retitles the Server tab and its disabled reasons when the naming toggle is flipped. */
+const applyServerNoun = (tabs: TabData[], noun: ServerNoun): TabData[] => (
+  noun === 'Server' ? tabs : tabs.map((tab) => {
+    const ariaLabel = (tab as TabData & { 'aria-label'?: unknown })['aria-label'];
+    return {
+      ...tab,
+      title: tab.title === 'Server' ? noun : tab.title,
+      'aria-label': typeof ariaLabel === 'string'
+        ? ariaLabel.replaceAll('Server mode', serverModeLabel(noun))
+        : ariaLabel,
+    } as TabData;
+  })
+);
+
+const modeDocsUrls: Record<Mode, string> = {
+  run: 'https://docs.apify.com/platform/actors/running',
+  server: 'https://docs.apify.com/platform/actors/running/standby',
+};
+
+// Links the mode name inside the tooltip copy rather than appending a "Learn more".
+const withDocsLink = (text: string, mode: Mode, serverNoun: ServerNoun = 'Server') => {
+  const label = mode === 'run' ? 'Run mode' : serverModeLabel(serverNoun);
+  const index = text.indexOf(label);
+
+  if (index === -1) return text;
+
+  return (
+    <TooltipCopy>
+      {text.slice(0, index)}
+      <TooltipDocsLink href={modeDocsUrls[mode]} target="_blank" rel="noreferrer">
+        {label}
+      </TooltipDocsLink>
+      {text.slice(index + label.length)}
+    </TooltipCopy>
+  );
+};
 
 const variantOptions: Array<{
   id: NavigationVariant;
@@ -1579,13 +1672,8 @@ const variantOptions: Array<{
   label: string;
   shortLabel?: string;
 }> = [
-  {
-    id: 'detached-above-labeled',
-    number: 1,
-    label: 'Detached above compact',
-    shortLabel: 'Compact service',
-  },
-  { id: 'inline-separated', number: 2, label: 'Inline separated' },
+  { id: 'detached-above-labeled', number: 1, label: 'Detached' },
+  { id: 'inline-separated', number: 2, label: 'Inline' },
   { id: 'disabled', number: 3, label: 'Disabled' },
 ];
 
@@ -1642,6 +1730,20 @@ const isInlineVariant = (variant: NavigationVariant) => (
 const isDetachedVariant = (variant: NavigationVariant) => (
   variant === 'detached'
 );
+
+/**
+ * What the endpoints tab is called, which depends on the variant.
+ *
+ * Inline puts the mode switcher segment immediately beside the tabs, so the segment
+ * already carries the mode noun — the tab takes the other word rather than repeating
+ * it ("Service" mode → a "Server" tab, "Server" mode → an "Endpoints" tab). Detached
+ * keeps the switcher up in the header, where there is nothing to collide with.
+ */
+const endpointsTabTitle = (variant: NavigationVariant, serverNoun: ServerNoun) => {
+  if (variant === 'detached-above-labeled') return 'Endpoints';
+  if (variant === 'inline-separated') return serverNoun === 'Service' ? 'Server' : 'Endpoints';
+  return serverNoun;
+};
 
 function SidebarItem({
   label,
@@ -1810,7 +1912,7 @@ function ActorHeader({
         </HeaderActions>
       </TitleRow>
 
-      <MetaRow $alignToPageGutter={Boolean(modeControl)}>
+      <MetaRow>
         {modeControl}
         {modeControl && <Dot aria-hidden="true" />}
         <Tag aria-label="Protected Actor" size="regular" variant="success" LeadingIcon={ShieldIcon} />
@@ -1847,6 +1949,7 @@ function SegmentedModeControl({
   labels,
   tooltips,
   disabledModes,
+  serverNoun = 'Server',
   compact = false,
 }: {
   mode: Mode;
@@ -1854,6 +1957,7 @@ function SegmentedModeControl({
   labels: { run: string; server: string };
   tooltips?: { run: string; server: string };
   disabledModes?: Partial<Record<Mode, boolean>>;
+  serverNoun?: ServerNoun;
   compact?: boolean;
 }) {
   const handleKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>) => {
@@ -1900,9 +2004,10 @@ function SegmentedModeControl({
 
     return tooltip ? (
       <Tooltip
-        content={tooltip}
+        content={withDocsLink(tooltip, segmentMode, serverNoun)}
         placement="bottom"
-        delayShow={disabled ? 200 : 3000}
+        delayShow={disabled ? 200 : 500}
+        delayHide={300}
         showInPortal
       >
         {segment}
@@ -1964,8 +2069,8 @@ function DedicatedModeControl({
         ? 'Input configures and starts the Actor in Run mode.'
         : runModeUnsupportedMessage
       : supportsServerMode
-        ? 'Server mode serves requests from the Actor.'
-        : serverModeUnsupportedMessage;
+        ? serverModeMessage('Server')
+        : serverModeUnsupportedMessage('Server');
     const Icon = tabMode === 'run' ? InputIcon : ApiIcon;
     const tab = (
       <DedicatedModeTab
@@ -1991,9 +2096,10 @@ function DedicatedModeControl({
 
     return (
       <Tooltip
-        content={tooltip}
+        content={withDocsLink(tooltip, tabMode)}
         placement="bottom"
-        delayShow={disabled ? 200 : 3000}
+        delayShow={disabled ? 200 : 500}
+        delayHide={300}
         showInPortal
       >
         {tab}
@@ -2175,6 +2281,8 @@ function ModeNavigation({
   devMode,
   supportsRunMode,
   supportsServerMode,
+  alwaysShowModes,
+  serverNoun,
 }: {
   mode: Mode;
   setMode: (mode: Mode) => void;
@@ -2187,6 +2295,8 @@ function ModeNavigation({
   devMode: boolean;
   supportsRunMode: boolean;
   supportsServerMode: boolean;
+  alwaysShowModes: boolean;
+  serverNoun: ServerNoun;
 }) {
   const [staggerMode, setStaggerMode] = useState<Mode>();
   const [staggerSplitMode, setStaggerSplitMode] = useState<SplitMode>();
@@ -2244,23 +2354,33 @@ function ModeNavigation({
     setActiveTab(nextMode === 'input' ? 'actor-input' : 'endpoints');
   };
 
-  const serverTabs = multiTenant
-    ? devMode ? multiTenantDevServerTabs : multiTenantServerTabs
-    : singleTenantServerTabs;
-  const visibleServerTabs = variant === 'detached-above-labeled'
+  const serverTabs = applyServerNoun(
+    multiTenant
+      ? devMode ? multiTenantDevServerTabs : multiTenantServerTabs
+      : singleTenantServerTabs,
+    serverNoun,
+  );
+  const visibleServerTabs = variant === 'detached-above-labeled' || variant === 'inline-separated'
     ? serverTabs.flatMap((tab) => (
         tab.id === 'endpoints'
-          ? [{ ...tab, title: 'Endpoints' }, mcpTab]
+          ? [{ ...tab, title: endpointsTabTitle(variant, serverNoun) }, mcpTab]
           : [tab]
       ))
-    : variant === 'inline-separated'
-      ? serverTabs.flatMap((tab) => (
-          tab.id === 'endpoints' ? [tab, mcpTab] : [tab]
-        ))
     : serverTabs;
 
   const runOnly = supportsRunMode && !supportsServerMode;
   const renderTabs = (tabs: TabData[], key: string, stagger = false) => {
+    // Disabled tabs are only blocked by pointer-events in CSS; don't let one slip
+    // through and switch the mode behind the Actor's declared capabilities.
+    const selectEnabledTab = (data: { id: string; event: React.MouseEvent }) => {
+      if (tabs.some((tab) => tab.id === data.id && tab.disabled)) {
+        data.event.preventDefault();
+        return;
+      }
+
+      selectTab(data);
+    };
+
     return (
       <>
         {inlineSourceEnabled && (
@@ -2276,7 +2396,7 @@ function ModeNavigation({
           tabs={tabs}
           activeTab={activeTab}
           setActiveTab={setActiveTab}
-          onSelect={selectTab}
+          onSelect={selectEnabledTab}
           stagger={stagger}
           reserveEndGap={devMode}
         />
@@ -2294,28 +2414,22 @@ function ModeNavigation({
     );
   };
 
-  const modeTooltips = {
-    run: supportsRunMode
-      ? 'Run mode uses Apify Input to configure and start Actor runs.'
-      : runModeUnsupportedMessage,
-    server: supportsServerMode
-      ? 'Server mode serves requests from the Actor’s Standby mode.'
-      : serverModeUnsupportedMessage,
-  };
+  const modeTooltips = modeTooltipCopy({ supportsRunMode, supportsServerMode, serverNoun });
 
   const inlineModeControl = (
     <SegmentedModeControl
       mode={mode}
       setMode={selectMode}
       labels={variant === 'inline-separated'
-        ? { run: 'Run', server: 'Service' }
-        : { run: 'Run mode', server: 'Server mode' }}
+        ? { run: 'Run', server: serverNoun }
+        : { run: 'Run mode', server: serverModeLabel(serverNoun) }}
       tooltips={modeTooltips}
       disabledModes={{ run: !supportsRunMode, server: !supportsServerMode }}
+      serverNoun={serverNoun}
     />
   );
 
-  if (runOnly && variant !== 'disabled') {
+  if (runOnly && variant !== 'disabled' && !alwaysShowModes) {
     return (
       <TabsBar>
         {renderTabs(runTabs, 'run-only')}
@@ -2353,16 +2467,37 @@ function ModeNavigation({
     const serverTabsWithMcp = serverTabs.flatMap((tab) => (
       tab.id === 'endpoints' ? [tab, mcpTab] : [tab]
     ));
+    const runPrimarySource = runTabs.filter(({ id }) => id === 'actor-input');
+    const serverPrimarySource = serverTabsWithMcp.filter(({ id }) => (
+      id === 'endpoints' || id === 'mcp' || id === 'requests'
+    ));
+    // With "Always show modes" the mode-specific tabs stay in the bar and read as
+    // disabled instead of disappearing when the Actor doesn't support that mode.
     const runPrimaryTabs = supportsRunMode
-      ? runTabs.filter(({ id }) => id === 'actor-input')
-      : [];
+      ? runPrimarySource
+      : alwaysShowModes
+        ? runPrimarySource.map((tab) => createDisabledTab(
+            tab,
+            `${tab.title} requires Run mode, which this Actor doesn’t support`,
+          ))
+        : [];
     const serverPrimaryTabs = supportsServerMode
-      ? serverTabsWithMcp.filter(({ id }) => (
-          id === 'endpoints' || id === 'mcp' || id === 'requests'
-        ))
-      : [];
+      ? serverPrimarySource
+      : alwaysShowModes
+        ? serverPrimarySource.map((tab) => createDisabledTab(
+            tab,
+            `${tab.title} requires ${serverModeLabel(serverNoun)}, which this Actor doesn’t support`,
+          ))
+        : [];
+    const restoreRunModeTabs = runModeRestoresTabs(variant, supportsRunMode);
     const sharedTabs = supportsServerMode
-      ? serverTabs.filter(({ id }) => id !== 'endpoints' && id !== 'requests')
+      ? serverTabs
+        .filter(({ id }) => id !== 'endpoints' && id !== 'requests')
+        .map((tab) => (
+          restoreRunModeTabs && runModeRestorableTabIds.has(String(tab.id))
+            ? runTabById.get(tab.id) ?? tab
+            : tab
+        ))
       : supportsRunMode
         ? runTabs.filter(({ id }) => id !== 'actor-input')
         : [];
@@ -2372,7 +2507,7 @@ function ModeNavigation({
       <TabsBar>
         {renderTabs(
           tabs,
-          `disabled:${supportsRunMode}:${supportsServerMode}:${multiTenant}:${devMode}`,
+          `disabled:${supportsRunMode}:${supportsServerMode}:${alwaysShowModes}:${multiTenant}:${devMode}`,
         )}
       </TabsBar>
     );
@@ -2402,7 +2537,7 @@ function ModeNavigation({
           <DropdownButton
             buttonLabel={(
               <ModeDropdownLabel>
-                <span>{splitMode === 'input' ? 'Run mode' : 'Server mode'}</span>
+                <span>{splitMode === 'input' ? 'Run mode' : serverModeLabel(serverNoun)}</span>
                 <ChevronDownIcon size="16" aria-hidden="true" />
               </ModeDropdownLabel>
             )}
@@ -2412,7 +2547,7 @@ function ModeNavigation({
               variant: 'tertiary',
               role: 'tab',
               'aria-selected': activeTab === splitMode,
-              'aria-label': `${splitMode === 'input' ? 'Run mode' : 'Server mode'}, choose Actor mode`,
+              'aria-label': `${splitMode === 'input' ? 'Run mode' : serverModeLabel(serverNoun)}, choose Actor mode`,
               'data-flow-target': 'server-mode',
               onClick: () => undefined,
             } as React.ComponentProps<typeof DropdownButton>['buttonProps']}
@@ -2430,7 +2565,7 @@ function ModeNavigation({
               selected={splitMode === 'server'}
               onSelect={() => selectSplitMode('server')}
             >
-              Server mode
+              {serverModeLabel(serverNoun)}
             </Dropdown.Item>
           </DropdownButton>
         </ModeDropdownTab>
@@ -2456,6 +2591,7 @@ function PlaceholderContent({
   setActiveTab,
   supportsRunMode,
   supportsServerMode,
+  serverNoun,
 }: {
   variant: NavigationVariant;
   mode: Mode;
@@ -2465,16 +2601,18 @@ function PlaceholderContent({
   setActiveTab: (tab: string) => void;
   supportsRunMode: boolean;
   supportsServerMode: boolean;
+  serverNoun: ServerNoun;
 }) {
   const detached = isDetachedVariant(variant);
+  const serverLabel = serverModeLabel(serverNoun);
   const modeLabel = variant === 'split'
-    ? splitMode === 'input' ? 'Run mode' : 'Server mode'
-    : detached
-      ? mode === 'run' ? 'Run mode' : 'Server mode'
-      : mode === 'run' ? 'Run mode' : 'Server mode';
-  const tabTitle = activeTab === 'endpoints' && variant === 'detached-above-labeled'
-    ? 'Endpoints'
-    : tabTitles[activeTab] ?? 'Content';
+    ? splitMode === 'input' ? 'Run mode' : serverLabel
+    : mode === 'run' ? 'Run mode' : serverLabel;
+  const tabTitle = activeTab === 'endpoints'
+    ? endpointsTabTitle(variant, serverNoun)
+    : activeTab === 'server' || activeTab === 'standby'
+      ? serverLabel
+      : tabTitles[activeTab] ?? 'Content';
   const tabRoute = tabRoutes[activeTab] ?? activeTab;
 
   const selectDetachedMode = (nextMode: Mode) => {
@@ -2490,16 +2628,12 @@ function PlaceholderContent({
             <SegmentedModeControl
               mode={mode}
               setMode={selectDetachedMode}
-              labels={{ run: 'Run mode', server: 'Server mode' }}
-              tooltips={!supportsRunMode || !supportsServerMode ? {
-                run: supportsRunMode
-                  ? 'Run mode uses Apify Input to configure and start Actor runs.'
-                  : runModeUnsupportedMessage,
-                server: supportsServerMode
-                  ? 'Server mode serves requests from the Actor’s Standby mode.'
-                  : serverModeUnsupportedMessage,
-              } : undefined}
+              labels={{ run: 'Run mode', server: serverLabel }}
+              tooltips={!supportsRunMode || !supportsServerMode
+                ? modeTooltipCopy({ supportsRunMode, supportsServerMode, serverNoun })
+                : undefined}
               disabledModes={{ run: !supportsRunMode, server: !supportsServerMode }}
+              serverNoun={serverNoun}
             />
           </DetachedModeRow>
         )}
@@ -2524,11 +2658,14 @@ function FlowOnboarding({
   flow,
   contextKey,
   onDismiss,
+  serverNoun,
 }: {
   flow?: OnboardingFlow;
   contextKey: string;
   onDismiss: () => void;
+  serverNoun: ServerNoun;
 }) {
+  const serverLabel = serverModeLabel(serverNoun);
   const [stepIndex, setStepIndex] = useState(0);
   const [position, setPosition] = useState<{
     top: number;
@@ -2543,13 +2680,13 @@ function FlowOnboarding({
         target: 'mode-switcher',
         eyebrow: 'Navigation guide',
         title: 'Switch between modes',
-        body: 'Use this segmented control to switch between Run mode and Server mode. Run mode starts Actor runs from Input, while Server mode keeps the Actor ready to serve requests.',
+        body: `Use this segmented control to switch between Run mode and ${serverLabel}. Run mode starts Actor runs from Input, while ${serverLabel} keeps the Actor ready to serve requests.`,
       },
       {
         target: 'operational-tabs',
         eyebrow: 'Navigation guide',
         title: 'Mode-specific tabs',
-        body: 'The tabs on the left contain the workflows for the selected mode. They update when you switch between Run mode and Server mode.',
+        body: `The tabs on the left contain the workflows for the selected mode. They update when you switch between Run mode and ${serverLabel}.`,
       },
       {
         target: 'developer-tabs',
@@ -2562,8 +2699,8 @@ function FlowOnboarding({
       {
         target: 'server-mode',
         eyebrow: 'New feature',
-        title: 'Meet Server mode',
-        body: 'Server mode keeps this Actor ready to receive HTTP requests. Use it when your integration needs an immediate response instead of starting a new run each time.',
+        title: `Meet ${serverLabel}`,
+        body: `${serverLabel} keeps this Actor ready to receive HTTP requests. Use it when your integration needs an immediate response instead of starting a new run each time.`,
       },
     ];
   const step = steps[Math.min(stepIndex, steps.length - 1)];
@@ -2595,7 +2732,8 @@ function FlowOnboarding({
       if (step.target === 'server-mode') {
         return [...document.querySelectorAll<HTMLElement>('[role="tab"]')].find((element) => {
           const rect = element.getBoundingClientRect();
-          return element.textContent?.trim() === 'Server mode' && rect.width > 0 && rect.height > 0;
+          const text = element.textContent?.trim();
+          return (text === serverLabel || text === serverNoun) && rect.width > 0 && rect.height > 0;
         });
       }
 
@@ -2741,6 +2879,10 @@ function VariantSelector({
   setSupportsRunMode,
   supportsServerMode,
   setSupportsServerMode,
+  alwaysShowModes,
+  setAlwaysShowModes,
+  serverNoun,
+  setServerNoun,
 }: {
   variant: NavigationVariant;
   onSelect: (variant: NavigationVariant) => void;
@@ -2756,6 +2898,10 @@ function VariantSelector({
   setSupportsRunMode: (supported: boolean) => void;
   supportsServerMode: boolean;
   setSupportsServerMode: (supported: boolean) => void;
+  alwaysShowModes: boolean;
+  setAlwaysShowModes: (enabled: boolean) => void;
+  serverNoun: ServerNoun;
+  setServerNoun: (noun: ServerNoun) => void;
 }) {
   const selectedVariant = variantOptions.find((option) => option.id === variant) ?? variantOptions[0];
 
@@ -2804,6 +2950,39 @@ function VariantSelector({
         ))}
       </DropdownButton>
       <DockDivider aria-hidden="true" />
+      <DropdownButton
+        buttonLabel={(
+          <TenancyDropdownLabel>
+            <span>{serverModeLabel(serverNoun)}</span>
+            <ChevronDownIcon size="16" aria-hidden="true" />
+          </TenancyDropdownLabel>
+        )}
+        width="132px"
+        buttonProps={{
+          size: 'extraLarge',
+          variant: 'tertiary',
+          color: 'primaryBlack',
+          className: 'control-center-select',
+          'aria-label': `Mode naming: ${serverModeLabel(serverNoun)}`,
+        } as React.ComponentProps<typeof DropdownButton>['buttonProps']}
+        contentProps={{
+          side: 'top',
+          align: 'start',
+          sideOffset: 4,
+          className: 'control-center-menu',
+        }}
+      >
+        {(['Server', 'Service'] as const).map((noun) => (
+          <Dropdown.Item
+            key={noun}
+            selected={serverNoun === noun}
+            onSelect={() => setServerNoun(noun)}
+          >
+            {serverModeLabel(noun)}
+          </Dropdown.Item>
+        ))}
+      </DropdownButton>
+      <DockDivider aria-hidden="true" />
       <DockCheckbox
         id="supports-run-mode"
         label="Run support"
@@ -2816,6 +2995,14 @@ function VariantSelector({
         label="Server support"
         value={supportsServerMode}
         setValue={setSupportsServerMode}
+      />
+      <DockDivider aria-hidden="true" />
+      {/* "No hiding" is the dock wording for the alwaysShowModes behaviour. */}
+      <DockCheckbox
+        id="always-show-modes"
+        label="No hiding"
+        value={alwaysShowModes}
+        setValue={setAlwaysShowModes}
       />
       <DockDivider aria-hidden="true" />
       <DropdownButton
@@ -2878,6 +3065,8 @@ function PrototypeInner() {
   const [devMode, setDevMode] = useState(false);
   const [supportsRunMode, setSupportsRunMode] = useState(true);
   const [supportsServerMode, setSupportsServerMode] = useState(true);
+  const [alwaysShowModes, setAlwaysShowModes] = useState(true);
+  const [serverNoun, setServerNoun] = useState<ServerNoun>('Server');
   const [sidebarCompact, setSidebarCompact] = useState(false);
   const [currentView, setCurrentView] = useState<PrototypeView>('prototype');
 
@@ -2958,18 +3147,17 @@ function PrototypeInner() {
       || (isInlineVariant(variant) && mode === 'server')
       || (variant === 'split' && splitMode === 'server')
       || (variant === 'detached' && mode === 'server');
+    const restoreRunModeTabs = runModeRestoresTabs(variant, supportsRunMode);
     const requestsBecomesDisabled = !nextMultiTenant
       && activeTab === 'requests'
       && (serverModeActive || variant === 'detached');
-    const runsBecomesDisabled = nextMultiTenant
-      && activeTab === 'runs'
-      && serverModeActive;
     const developerTabBecomesDisabled = nextMultiTenant
       && !devMode
       && serverModeActive
-      && (activeTab === 'builds' || activeTab === 'tasks');
+      && multiTenantDeveloperTabIds.has(activeTab)
+      && !restoreRunModeTabs;
 
-    if (requestsBecomesDisabled || runsBecomesDisabled || developerTabBecomesDisabled) {
+    if (requestsBecomesDisabled || developerTabBecomesDisabled) {
       setActiveTab(variant === 'detached' ? 'use' : 'endpoints');
       if (variant === 'disabled') setMode('server');
     }
@@ -2993,7 +3181,8 @@ function PrototypeInner() {
       } else if (
         multiTenant
         && serverModeActive
-        && (activeTab === 'builds' || activeTab === 'tasks')
+        && multiTenantDeveloperTabIds.has(activeTab)
+        && !runModeRestoresTabs(variant, supportsRunMode)
       ) {
         setActiveTab('endpoints');
         if (variant === 'disabled') setMode('server');
@@ -3073,27 +3262,19 @@ function PrototypeInner() {
         setMode(nextMode);
         setActiveTab(nextMode === 'run' ? 'actor-input' : 'endpoints');
       }}
-      labels={variant === 'detached-above-labeled'
-        ? { run: 'Run', server: 'Server' }
-        : variant === 'detached-above-trailing-label'
-          ? { run: 'Run', server: 'Server' }
-        : { run: 'Run mode', server: 'Server mode' }}
-      tooltips={{
-        run: supportsRunMode
-          ? 'Run mode uses Apify Input to configure and start Actor runs.'
-          : runModeUnsupportedMessage,
-        server: supportsServerMode
-          ? 'Server mode serves requests from the Actor’s Standby mode.'
-          : serverModeUnsupportedMessage,
-      }}
+      labels={isDetachedAboveVariant(variant) && variant !== 'detached-above'
+        ? { run: 'Run', server: serverNoun }
+        : { run: 'Run mode', server: serverModeLabel(serverNoun) }}
+      tooltips={modeTooltipCopy({ supportsRunMode, supportsServerMode, serverNoun })}
       disabledModes={{ run: !supportsRunMode, server: !supportsServerMode }}
+      serverNoun={serverNoun}
       compact
     />
   ) : undefined;
 
   const headerModeControl = (
     headerModeSwitcher
-    && !(supportsRunMode && !supportsServerMode)
+    && (alwaysShowModes || !(supportsRunMode && !supportsServerMode))
   ) ? variant === 'detached-above-trailing-label' ? (
     <TrailingLabeledModeControl>
       {headerModeSwitcher}
@@ -3125,6 +3306,8 @@ function PrototypeInner() {
               devMode={devMode}
               supportsRunMode={supportsRunMode}
               supportsServerMode={supportsServerMode}
+              alwaysShowModes={alwaysShowModes}
+              serverNoun={serverNoun}
             />
             <PlaceholderContent
               variant={variant}
@@ -3135,6 +3318,7 @@ function PrototypeInner() {
               setActiveTab={setActiveTab}
               supportsRunMode={supportsRunMode}
               supportsServerMode={supportsServerMode}
+              serverNoun={serverNoun}
             />
           </>
         )}
@@ -3142,6 +3326,7 @@ function PrototypeInner() {
       {currentView === 'prototype' && (
         <>
           <FlowOnboarding
+            serverNoun={serverNoun}
             flow={standbyFlowEnabled ? 'standby' : reshuffleFlowEnabled ? 'reshuffle' : undefined}
             contextKey={`${variant}:${mode}:${splitMode}:${activeTab}:${devMode}`}
             onDismiss={dismissFlows}
@@ -3161,6 +3346,10 @@ function PrototypeInner() {
             setSupportsRunMode={selectRunModeSupport}
             supportsServerMode={supportsServerMode}
             setSupportsServerMode={selectServerModeSupport}
+            alwaysShowModes={alwaysShowModes}
+            setAlwaysShowModes={setAlwaysShowModes}
+            serverNoun={serverNoun}
+            setServerNoun={setServerNoun}
           />
         </>
       )}

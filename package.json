@@ -5,18 +5,22 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
-    "check": "tsc --noEmit"
+    "start": "node server.mjs",
+    "check": "tsc --noEmit",
+    "test": "playwright test",
+    "test:ui": "playwright test --ui"
   },
   "dependencies": {
     "@apify/ui-icons": "1.48.0",
     "@apify/ui-library": "1.156.10",
+    "apify": "^3.7.2",
     "next": "16.2.12",
     "react": "19.2.0",
     "react-dom": "19.2.0",
     "styled-components": "6.1.19"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
     "@types/node": "^22.10.0",
     "@types/react": "19.2.2",
     "@types/react-dom": "19.2.2",
