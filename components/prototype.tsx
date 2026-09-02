@@ -3055,7 +3055,7 @@ function PrototypeInner() {
   const [devMode, setDevMode] = useState(false);
   const [supportsRunMode, setSupportsRunMode] = useState(true);
   const [supportsServerMode, setSupportsServerMode] = useState(true);
-  const [alwaysShowModes, setAlwaysShowModes] = useState(false);
+  const [alwaysShowModes, setAlwaysShowModes] = useState(true);
   const [serverNoun, setServerNoun] = useState<ServerNoun>('Server');
   const [sidebarCompact, setSidebarCompact] = useState(false);
   const [currentView, setCurrentView] = useState<PrototypeView>('prototype');

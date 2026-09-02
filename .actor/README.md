@@ -29,7 +29,7 @@ The dark bar along the bottom is prototype scaffolding, not part of the design. 
 - **Variant** — switch between the three navigation options
 - **Server mode / Service mode** — flips the product wording everywhere at once, for comparing the two names in place
 - **Run support / Server support** — what the Actor declares it can do; turning one off is how you see the unsupported-mode states
-- **No hiding** — keeps the mode switcher visible when a mode is unsupported, greyed out rather than removed
+- **No hiding** (on by default) — keeps the mode switcher visible when a mode is unsupported, greyed out rather than removed; untick it to see the old hide-the-switcher behaviour
 - **Single-tenant / Multi-tenant** — drives the tab capability rules
 - **Developer** — adds the Source / Publishing / Settings tabs
 - **Standby flow / Reshuffle flow** — plays the onboarding walkthroughs
