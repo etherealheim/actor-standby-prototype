@@ -65,6 +65,7 @@ import {
 } from '@apify/ui-library';
 
 import { ActorInfoView } from './actor-info';
+import { StorePageView } from './store-page';
 
 type Mode = 'run' | 'server';
 type SplitMode = 'input' | 'server';
@@ -80,7 +81,12 @@ type NavigationVariant =
   | 'detached-above-trailing-label';
 type ServerNoun = 'Server' | 'Service';
 type OnboardingFlow = 'standby' | 'reshuffle';
-type PrototypeView = 'prototype' | 'actor-info';
+type PrototypeView = 'prototype' | 'actor-info' | 'store';
+
+const viewFromParams = (params: URLSearchParams): PrototypeView => {
+  const view = params.get('view');
+  return view === 'actor-info' || view === 'store' ? view : 'prototype';
+};
 
 const ApifyTokens = createGlobalStyle`
   :root {
@@ -3153,11 +3159,10 @@ function PrototypeInner() {
       window.history.replaceState({}, '', url);
     }
 
-    setCurrentView(searchParams.get('view') === 'actor-info' ? 'actor-info' : 'prototype');
+    setCurrentView(viewFromParams(searchParams));
 
     const syncViewFromHistory = () => {
-      const params = new URLSearchParams(window.location.search);
-      setCurrentView(params.get('view') === 'actor-info' ? 'actor-info' : 'prototype');
+      setCurrentView(viewFromParams(new URLSearchParams(window.location.search)));
     };
 
     window.addEventListener('popstate', syncViewFromHistory);
@@ -3316,8 +3321,8 @@ function PrototypeInner() {
     dismissFlows();
 
     const url = new URL(window.location.href);
-    if (nextView === 'actor-info') url.searchParams.set('view', 'actor-info');
-    else url.searchParams.delete('view');
+    if (nextView === 'prototype') url.searchParams.delete('view');
+    else url.searchParams.set('view', nextView);
     window.history.pushState({}, '', url);
   };
 
@@ -3348,12 +3353,20 @@ function PrototypeInner() {
     </TrailingLabeledModeControl>
   ) : headerModeSwitcher : undefined;
 
+  // The public page is apify.com, not Console — it renders without the app sidebar.
+  if (currentView === 'store') {
+    return <StorePageView onBack={() => navigateToView('prototype')} />;
+  }
+
   return (
     <Shell $sidebarCompact={sidebarCompact}>
       <AppSidebar compact={sidebarCompact} onToggle={() => setSidebarCompact((compact) => !compact)} />
       <MainColumn>
         {currentView === 'actor-info' ? (
-          <ActorInfoView onBack={() => navigateToView('prototype')} />
+          <ActorInfoView
+            onBack={() => navigateToView('prototype')}
+            onOpenStorePage={() => navigateToView('store')}
+          />
         ) : (
           <>
             <ActorHeader

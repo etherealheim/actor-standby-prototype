@@ -26,11 +26,13 @@ import {
 import type { IconComponent } from '@apify/ui-icons';
 import { Button, theme } from '@apify/ui-library';
 
-type InfoTabId = 'readme' | 'input' | 'pricing' | 'api' | 'issues' | 'reviews' | 'changelog';
+import { InterfacePanel } from './interface-panel';
+
+type InfoTabId = 'readme' | 'interface' | 'pricing' | 'api' | 'issues' | 'reviews' | 'changelog';
 
 const infoTabs: Array<{ id: InfoTabId; label: string; Icon: IconComponent }> = [
   { id: 'readme', label: 'Readme', Icon: BookOpenIcon },
-  { id: 'input', label: 'Input', Icon: InputIcon },
+  { id: 'interface', label: 'Interface', Icon: InputIcon },
   { id: 'pricing', label: 'Pricing', Icon: PricingIcon },
   { id: 'api', label: 'API', Icon: ApiIcon },
   { id: 'issues', label: 'Issues', Icon: IssuesIcon },
@@ -375,7 +377,13 @@ const EmptyTab = styled.div`
   font-size: 14px;
 `;
 
-export function ActorInfoView({ onBack }: { onBack: () => void }) {
+export function ActorInfoView({
+  onBack,
+  onOpenStorePage,
+}: {
+  onBack: () => void;
+  onOpenStorePage: () => void;
+}) {
   const [activeTab, setActiveTab] = useState<InfoTabId>('readme');
 
   return (
@@ -397,6 +405,9 @@ export function ActorInfoView({ onBack }: { onBack: () => void }) {
                 <CopyIcon size="12" aria-hidden="true" />
               </StoreActorId>
             </IdentityCopy>
+            <Button size="medium" variant="secondary" onClick={onOpenStorePage}>
+              View public page
+            </Button>
             <Button size="medium" onClick={onBack}>Use Actor</Button>
           </IdentityRow>
           <HeroDescription>
@@ -482,6 +493,8 @@ export function ActorInfoView({ onBack }: { onBack: () => void }) {
                   <PlayIcon size="40" aria-hidden="true" />
                 </VideoPlaceholder>
               </Readme>
+            ) : activeTab === 'interface' ? (
+              <InterfacePanel />
             ) : (
               <EmptyTab>{infoTabs.find(({ id }) => id === activeTab)?.label} content</EmptyTab>
             )}

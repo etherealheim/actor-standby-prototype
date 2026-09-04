@@ -16,6 +16,18 @@ Open the Actor's Standby URL in a browser. The navigation variant is selected wi
 
 Without `option`, it opens variant 1.
 
+Two Actor detail pages sit alongside the navigation variants, both carrying an
+**Interface** tab split into **Input** and **Server**:
+
+| URL | Page |
+| --- | --- |
+| `?view=actor-info` | The Console Actor-info page — Console sidebar, facts rail, `Readme / Interface / Pricing / API / …` |
+| `?view=store` | The public apify.com Actor page — marketing header, `Try for free`, `README / Interface / Pricing / Service / API / …` |
+
+Input is the schema the store page shows today. Server is the other half an Actor
+server has: its endpoints and its MCP section — the same content option 3 keeps
+inside its Server tab, reaching the page people read before they open Console.
+
 ## Browser access requires Console authentication
 
 Standby requests are authenticated. For a browser to load the prototype — including its JavaScript chunks, fonts and images — the Actor needs **Enable Console authentication** (`isConsoleAuthEnabled`) switched on in its Standby settings. That setting is admin-only.
