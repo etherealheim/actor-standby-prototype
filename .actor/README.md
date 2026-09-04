@@ -12,7 +12,7 @@ Open the Actor's Standby URL in a browser. The navigation variant is selected wi
 | --- | --- | --- |
 | `?option=1` | **Detached** | Mode switcher lives in the header meta row, above the tabs |
 | `?option=2` | **Inline** | Mode switcher sits in the tab bar, separated by a divider |
-| `?option=3` | **Disabled** | No switcher — both modes' tabs merged into one bar, unavailable ones greyed out |
+| `?option=3` | **No changes** | Leaves the navigation as it is — one tab bar, no switcher, and whatever doesn't apply to the Actor is disabled |
 
 Without `option`, it opens variant 1.
 

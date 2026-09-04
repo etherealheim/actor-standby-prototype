@@ -115,7 +115,7 @@ test.describe('Requests', () => {
   });
 });
 
-test.describe('Option 3 — Disabled', () => {
+test.describe('Option 3 — No changes', () => {
   // The bar merges both modes, so anything Run mode can reach stays enabled.
   const runReachable = ['Runs', 'Builds', 'Integrations', 'Saved tasks'];
 

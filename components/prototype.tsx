@@ -1505,9 +1505,10 @@ const runTabs: TabData[] = [
 
 const runTabById = new Map(runTabs.map((tab) => [tab.id, tab]));
 
-// The "Disabled" variant merges both modes into one tab bar. Tabs that Run mode can
-// reach stay enabled there even when Multi-tenant Server mode would disable them —
-// they are only unreachable on a server-only Actor.
+// "No changes" is the option that proposes no navigation change at all: one tab bar,
+// no mode switcher, and the parts that make no sense for a given Actor simply
+// disabled. Tabs that Run mode can reach stay enabled even when Multi-tenant Server
+// mode would disable them — they are only unreachable on a server-only Actor.
 const runModeRestorableTabIds = new Set(['runs', 'builds', 'integrations', 'tasks']);
 
 const runModeRestoresTabs = (variant: NavigationVariant, supportsRunMode: boolean) => (
@@ -1669,7 +1670,7 @@ const variantOptions: Array<{
 }> = [
   { id: 'detached-above-labeled', number: 1, label: 'Detached' },
   { id: 'inline-separated', number: 2, label: 'Inline' },
-  { id: 'disabled', number: 3, label: 'Disabled' },
+  { id: 'disabled', number: 3, label: 'No changes' },
 ];
 
 const tabTitles: Record<string, string> = {
