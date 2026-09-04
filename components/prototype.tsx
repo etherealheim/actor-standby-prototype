@@ -1250,6 +1250,37 @@ const PlaceholderHint = styled.p`
   text-wrap: pretty;
 `;
 
+/**
+ * Option 3 keeps endpoints and MCP inside one Server tab. A quiet section row in the
+ * content says so — putting them back in the bar is the change this option doesn't make.
+ */
+const SectionRow = styled.div`
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid ${theme.color.neutral.separatorSubtle};
+  border-radius: 8px;
+  background: ${theme.color.neutral.background};
+`;
+
+const SectionChip = styled.button<{ $active: boolean }>`
+  height: 24px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 6px;
+  background: ${({ $active }) => ($active ? theme.color.neutral.backgroundSubtle : 'transparent')};
+  color: ${({ $active }) => ($active ? theme.color.neutral.text : theme.color.neutral.textMuted)};
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+  cursor: pointer;
+
+  &:hover {
+    color: ${theme.color.neutral.text};
+  }
+`;
+
 const VariantDock = styled.aside`
   position: fixed;
   left: 50%;
@@ -2608,6 +2639,9 @@ function PlaceholderContent({
   // See ModeNavigation — option 3 is inert to the naming select.
   const serverNoun = variant === 'disabled' ? 'Server' : serverNounSetting;
   const serverLabel = serverModeLabel(serverNoun);
+  // Option 3's Server tab is the only place two sections share one tab.
+  const [serverSection, setServerSection] = useState<'endpoints' | 'mcp'>('endpoints');
+  const showSections = variant === 'disabled' && activeTab === 'endpoints';
   const modeLabel = variant === 'split'
     ? splitMode === 'input' ? 'Run mode' : serverLabel
     : mode === 'run' ? 'Run mode' : serverLabel;
@@ -2616,7 +2650,7 @@ function PlaceholderContent({
     : activeTab === 'server' || activeTab === 'standby'
       ? serverLabel
       : tabTitles[activeTab] ?? 'Content';
-  const tabRoute = tabRoutes[activeTab] ?? activeTab;
+  const tabRoute = showSections ? serverSection : tabRoutes[activeTab] ?? activeTab;
 
   const selectDetachedMode = (nextMode: Mode) => {
     setMode(nextMode);
@@ -2647,10 +2681,25 @@ function PlaceholderContent({
         >
           <PlaceholderMode>{modeLabel}</PlaceholderMode>
           <PlaceholderTitle>{tabTitle} content</PlaceholderTitle>
+          {showSections && (
+            <SectionRow role="group" aria-label="Server tab sections">
+              {(['endpoints', 'mcp'] as const).map((section) => (
+                <SectionChip
+                  key={section}
+                  type="button"
+                  aria-pressed={serverSection === section}
+                  $active={serverSection === section}
+                  onClick={() => setServerSection(section)}
+                >
+                  {section === 'mcp' ? 'MCP' : 'Endpoints'}
+                </SectionChip>
+              ))}
+            </SectionRow>
+          )}
           <PlaceholderRoute>/{tabRoute}</PlaceholderRoute>
           <PlaceholderHint>
-            {variant === 'disabled' && activeTab === 'endpoints'
-              ? 'Holds the endpoints and MCP sections.'
+            {showSections
+              ? 'Both sections live inside this tab. Options 1 and 2 split them into two.'
               : 'Placeholder for the content relevant to this mode and tab.'}
           </PlaceholderHint>
         </PlaceholderPanel>

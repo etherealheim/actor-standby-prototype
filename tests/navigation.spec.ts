@@ -335,7 +335,31 @@ test.describe('Option 3 — one Server tab', () => {
     expect(states).not.toContain('MCP');
 
     await page.locator('[role="tab"]:not([data-mode])', { hasText: 'Server' }).click();
-    expect(await placeholderText(page)).toContain('endpoints and MCP sections');
+    // The section row inside the tab is what says they weren't dropped.
+    await expect(page.locator('[aria-label="Server tab sections"] button'))
+      .toHaveText(['Endpoints', 'MCP']);
+    expect(await placeholderText(page)).toContain('Both sections live inside this tab');
+  });
+
+  test('the section row switches the content route', async ({ page }) => {
+    await openPrototype(page, OPTION.disabled);
+    await page.locator('[role="tab"]:not([data-mode])', { hasText: 'Server' }).click();
+
+    const sections = page.locator('[aria-label="Server tab sections"] button');
+    expect(await placeholderText(page)).toContain('/endpoints');
+
+    await sections.filter({ hasText: 'MCP' }).click();
+    expect(await placeholderText(page)).toContain('/mcp');
+    await expect(sections.filter({ hasText: 'MCP' })).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  // The row belongs to option 3 only — the others have real tabs for this.
+  test('options 1 and 2 have no section row', async ({ page }) => {
+    for (const option of [OPTION.detached, OPTION.inline]) {
+      await openPrototype(page, option);
+      await page.locator('[data-mode="server"]').click();
+      await expect(page.locator('[aria-label="Server tab sections"]')).toHaveCount(0);
+    }
   });
 
   // Options 1 and 2 still split them, so this is option 3's rule, not a global one.
