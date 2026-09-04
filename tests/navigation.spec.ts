@@ -90,6 +90,31 @@ test.describe('Integrations under multi-tenant', () => {
   });
 });
 
+// A single-tenant server serves requests too — the tab was disabled there by an
+// earlier rule and came back in on 2026-09-04.
+test.describe('Requests', () => {
+  test('is enabled in Server mode under either tenancy', async ({ page }) => {
+    await openPrototype(page, OPTION.detached);
+
+    for (const multiTenant of [false, true]) {
+      await setDock(page, { multiTenant });
+      await page.locator('[data-mode="server"]').click();
+      expect(await tabStates(page)).toContain('Requests');
+    }
+  });
+
+  test('stays put when tenancy flips underneath it', async ({ page }) => {
+    await openPrototype(page, OPTION.detached);
+    await setDock(page, { multiTenant: true });
+    await page.locator('[data-mode="server"]').click();
+    await page.locator('[role="tab"]:not([data-mode])', { hasText: 'Requests' }).click();
+    expect(await placeholderText(page)).toContain('Requests content');
+
+    await setDock(page, { multiTenant: false });
+    expect(await placeholderText(page)).toContain('Requests content');
+  });
+});
+
 test.describe('Option 3 — Disabled', () => {
   // The bar merges both modes, so anything Run mode can reach stays enabled.
   const runReachable = ['Runs', 'Builds', 'Integrations', 'Saved tasks'];

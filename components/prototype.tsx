@@ -1536,11 +1536,6 @@ const mcpTab: TabData = {
   to: '#mcp',
 };
 
-const singleTenantRequestsTab = createDisabledTab(
-  requestsTab,
-  'Requests are unavailable in Single-tenant Server mode',
-);
-
 const runsTab: TabData = { id: 'runs', title: 'Runs', Icon: PlayIcon, to: '#runs' };
 const buildsTab: TabData = { id: 'builds', title: 'Builds', Icon: BuildsIcon, to: '#builds' };
 const integrationsTab: TabData = {
@@ -1560,7 +1555,7 @@ const multiTenantDeveloperTabIds = new Set(['runs', 'builds', 'integrations', 't
 
 const singleTenantServerTabs: TabData[] = [
   { id: 'endpoints', title: 'Server', Icon: ApiIcon, to: '#endpoints' },
-  singleTenantRequestsTab,
+  requestsTab,
   { id: 'runs', title: 'Runs', Icon: PlayIcon, to: '#runs' },
   { id: 'builds', title: 'Builds', Icon: BuildsIcon, to: '#builds' },
   { id: 'monitoring', title: 'Monitoring', Icon: MonitoringIcon, to: '#monitoring' },
@@ -2441,7 +2436,7 @@ function ModeNavigation({
     const tabs = mode === 'run'
       ? [
           detachedUseTab,
-          multiTenant ? requestsTab : singleTenantRequestsTab,
+          requestsTab,
           ...runTabs.slice(1),
         ]
       : [detachedUseTab, ...serverTabs.slice(1)];
@@ -3148,16 +3143,13 @@ function PrototypeInner() {
       || (variant === 'split' && splitMode === 'server')
       || (variant === 'detached' && mode === 'server');
     const restoreRunModeTabs = runModeRestoresTabs(variant, supportsRunMode);
-    const requestsBecomesDisabled = !nextMultiTenant
-      && activeTab === 'requests'
-      && (serverModeActive || variant === 'detached');
     const developerTabBecomesDisabled = nextMultiTenant
       && !devMode
       && serverModeActive
       && multiTenantDeveloperTabIds.has(activeTab)
       && !restoreRunModeTabs;
 
-    if (requestsBecomesDisabled || developerTabBecomesDisabled) {
+    if (developerTabBecomesDisabled) {
       setActiveTab(variant === 'detached' ? 'use' : 'endpoints');
       if (variant === 'disabled') setMode('server');
     }
