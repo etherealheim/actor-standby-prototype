@@ -2278,6 +2278,7 @@ function ModeNavigation({
   supportsServerMode,
   alwaysShowModes,
   serverNoun,
+  showModeWord,
 }: {
   mode: Mode;
   setMode: (mode: Mode) => void;
@@ -2292,6 +2293,7 @@ function ModeNavigation({
   supportsServerMode: boolean;
   alwaysShowModes: boolean;
   serverNoun: ServerNoun;
+  showModeWord: boolean;
 }) {
   const [staggerMode, setStaggerMode] = useState<Mode>();
   const [staggerSplitMode, setStaggerSplitMode] = useState<SplitMode>();
@@ -2415,7 +2417,7 @@ function ModeNavigation({
     <SegmentedModeControl
       mode={mode}
       setMode={selectMode}
-      labels={variant === 'inline-separated'
+      labels={variant === 'inline-separated' && !showModeWord
         ? { run: 'Run', server: serverNoun }
         : { run: 'Run mode', server: serverModeLabel(serverNoun) }}
       tooltips={modeTooltips}
@@ -2878,6 +2880,8 @@ function VariantSelector({
   setAlwaysShowModes,
   serverNoun,
   setServerNoun,
+  showModeWord,
+  setShowModeWord,
 }: {
   variant: NavigationVariant;
   onSelect: (variant: NavigationVariant) => void;
@@ -2897,6 +2901,8 @@ function VariantSelector({
   setAlwaysShowModes: (enabled: boolean) => void;
   serverNoun: ServerNoun;
   setServerNoun: (noun: ServerNoun) => void;
+  showModeWord: boolean;
+  setShowModeWord: (enabled: boolean) => void;
 }) {
   const selectedVariant = variantOptions.find((option) => option.id === variant) ?? variantOptions[0];
 
@@ -2977,6 +2983,14 @@ function VariantSelector({
           </Dropdown.Item>
         ))}
       </DropdownButton>
+      <DockDivider aria-hidden="true" />
+      {/* Whether the switcher segments say "Run"/"Server" or "Run mode"/"Server mode". */}
+      <DockCheckbox
+        id="show-mode-word"
+        label="Mode word"
+        value={showModeWord}
+        setValue={setShowModeWord}
+      />
       <DockDivider aria-hidden="true" />
       <DockCheckbox
         id="supports-run-mode"
@@ -3062,6 +3076,9 @@ function PrototypeInner() {
   const [supportsServerMode, setSupportsServerMode] = useState(true);
   const [alwaysShowModes, setAlwaysShowModes] = useState(true);
   const [serverNoun, setServerNoun] = useState<ServerNoun>('Server');
+  // The switcher segments read "Run" / "Server"; the word "mode" was dropped on
+  // purpose to keep them short. This puts it back so both readings can be shown.
+  const [showModeWord, setShowModeWord] = useState(false);
   const [sidebarCompact, setSidebarCompact] = useState(false);
   const [currentView, setCurrentView] = useState<PrototypeView>('prototype');
 
@@ -3254,7 +3271,7 @@ function PrototypeInner() {
         setMode(nextMode);
         setActiveTab(nextMode === 'run' ? 'actor-input' : 'endpoints');
       }}
-      labels={isDetachedAboveVariant(variant) && variant !== 'detached-above'
+      labels={isDetachedAboveVariant(variant) && variant !== 'detached-above' && !showModeWord
         ? { run: 'Run', server: serverNoun }
         : { run: 'Run mode', server: serverModeLabel(serverNoun) }}
       tooltips={modeTooltipCopy({ supportsRunMode, supportsServerMode, serverNoun })}
@@ -3300,6 +3317,7 @@ function PrototypeInner() {
               supportsServerMode={supportsServerMode}
               alwaysShowModes={alwaysShowModes}
               serverNoun={serverNoun}
+              showModeWord={showModeWord}
             />
             <PlaceholderContent
               variant={variant}
@@ -3342,6 +3360,8 @@ function PrototypeInner() {
             setAlwaysShowModes={setAlwaysShowModes}
             serverNoun={serverNoun}
             setServerNoun={setServerNoun}
+            showModeWord={showModeWord}
+            setShowModeWord={setShowModeWord}
           />
         </>
       )}

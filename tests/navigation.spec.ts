@@ -294,3 +294,32 @@ test.describe('Mode naming select', () => {
     await expect(link.locator('..')).toContainText('Service mode keeps the Actor ready to serve requests.');
   });
 });
+
+// The switcher deliberately reads "Run" / "Server". "Mode word" puts "mode" back
+// so the two readings can be compared in place before the naming call.
+test.describe('Mode word', () => {
+  for (const [name, option] of [['option 1', OPTION.detached], ['option 2', OPTION.inline]] as const) {
+    test(`${name}: adds "mode" to both switcher segments`, async ({ page }) => {
+      await openPrototype(page, option);
+
+      await setDock(page, { modeWord: false });
+      expect((await modeSwitcher(page))?.map(({ label }) => label)).toEqual(['Run', 'Server']);
+
+      await setDock(page, { modeWord: true });
+      expect((await modeSwitcher(page))?.map(({ label }) => label)).toEqual(['Run mode', 'Server mode']);
+    });
+  }
+
+  test('follows the naming select', async ({ page }) => {
+    await openPrototype(page, OPTION.detached);
+    await setDock(page, { modeWord: true });
+    await setServerNoun(page, 'Service');
+
+    expect((await modeSwitcher(page))?.map(({ label }) => label)).toEqual(['Run mode', 'Service mode']);
+  });
+
+  test('is off by default', async ({ page }) => {
+    await openPrototype(page, OPTION.detached);
+    expect((await modeSwitcher(page))?.map(({ label }) => label)).toEqual(['Run', 'Server']);
+  });
+});

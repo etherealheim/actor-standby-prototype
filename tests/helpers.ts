@@ -9,6 +9,7 @@ export type DockState = {
   alwaysShowModes?: boolean;
   developer?: boolean;
   multiTenant?: boolean;
+  modeWord?: boolean;
 };
 
 const CHECKBOX_IDS = {
@@ -16,6 +17,7 @@ const CHECKBOX_IDS = {
   server: 'supports-server-mode',
   alwaysShowModes: 'always-show-modes',
   developer: 'developer-view',
+  modeWord: 'show-mode-word',
 } as const;
 
 export async function openPrototype(page: Page, option: number) {
@@ -59,6 +61,9 @@ export async function setDock(page: Page, state: DockState) {
   }
   if (state.developer !== undefined) {
     await setCheckbox(page, CHECKBOX_IDS.developer, state.developer);
+  }
+  if (state.modeWord !== undefined) {
+    await setCheckbox(page, CHECKBOX_IDS.modeWord, state.modeWord);
   }
   if (state.multiTenant !== undefined) await setTenancy(page, state.multiTenant);
 
