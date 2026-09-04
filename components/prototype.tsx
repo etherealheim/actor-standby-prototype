@@ -2278,7 +2278,7 @@ function ModeNavigation({
   supportsRunMode,
   supportsServerMode,
   alwaysShowModes,
-  serverNoun,
+  serverNoun: serverNounSetting,
   showModeWord,
 }: {
   mode: Mode;
@@ -2296,6 +2296,10 @@ function ModeNavigation({
   serverNoun: ServerNoun;
   showModeWord: boolean;
 }) {
+  // Option 3 proposes leaving the navigation alone, so neither naming control reaches
+  // it: it keeps today's "Server" tab whatever the dock says. (The mode-word toggle is
+  // already moot there — option 3 has no switcher to label.)
+  const serverNoun = variant === 'disabled' ? 'Server' : serverNounSetting;
   const [staggerMode, setStaggerMode] = useState<Mode>();
   const [staggerSplitMode, setStaggerSplitMode] = useState<SplitMode>();
   const inlineVariant = isInlineVariant(variant);
@@ -2462,12 +2466,11 @@ function ModeNavigation({
   }
 
   if (variant === 'disabled') {
-    const serverTabsWithMcp = serverTabs.flatMap((tab) => (
-      tab.id === 'endpoints' ? [tab, mcpTab] : [tab]
-    ));
+    // A single Server tab, with the endpoints and MCP sections inside it — splitting
+    // them across the bar would be a navigation change, which this option isn't.
     const runPrimarySource = runTabs.filter(({ id }) => id === 'actor-input');
-    const serverPrimarySource = serverTabsWithMcp.filter(({ id }) => (
-      id === 'endpoints' || id === 'mcp' || id === 'requests'
+    const serverPrimarySource = serverTabs.filter(({ id }) => (
+      id === 'endpoints' || id === 'requests'
     ));
     // With "Always show modes" the mode-specific tabs stay in the bar and read as
     // disabled instead of disappearing when the Actor doesn't support that mode.
@@ -2589,7 +2592,7 @@ function PlaceholderContent({
   setActiveTab,
   supportsRunMode,
   supportsServerMode,
-  serverNoun,
+  serverNoun: serverNounSetting,
 }: {
   variant: NavigationVariant;
   mode: Mode;
@@ -2602,6 +2605,8 @@ function PlaceholderContent({
   serverNoun: ServerNoun;
 }) {
   const detached = isDetachedVariant(variant);
+  // See ModeNavigation — option 3 is inert to the naming select.
+  const serverNoun = variant === 'disabled' ? 'Server' : serverNounSetting;
   const serverLabel = serverModeLabel(serverNoun);
   const modeLabel = variant === 'split'
     ? splitMode === 'input' ? 'Run mode' : serverLabel
@@ -2644,7 +2649,9 @@ function PlaceholderContent({
           <PlaceholderTitle>{tabTitle} content</PlaceholderTitle>
           <PlaceholderRoute>/{tabRoute}</PlaceholderRoute>
           <PlaceholderHint>
-            Placeholder for the content relevant to this mode and tab.
+            {variant === 'disabled' && activeTab === 'endpoints'
+              ? 'Holds the endpoints and MCP sections.'
+              : 'Placeholder for the content relevant to this mode and tab.'}
           </PlaceholderHint>
         </PlaceholderPanel>
       </ContentStack>

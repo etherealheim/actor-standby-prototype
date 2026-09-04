@@ -22,6 +22,10 @@ const CHECKBOX_IDS = {
 
 export async function openPrototype(page: Page, option: number) {
   await page.goto(`/?option=${option}`);
+  // The variant is read off the URL in an effect, so the first paint is always
+  // option 1. Wait for the dock to catch up before reading the tab bar.
+  await expect(page.locator('button[aria-label^="Navigation variant"]'))
+    .toHaveAttribute('aria-label', new RegExp(`^Navigation variant: Option ${option},`));
   await expect(page.locator('[role="tab"]').first()).toBeVisible();
 }
 

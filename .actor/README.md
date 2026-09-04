@@ -12,7 +12,7 @@ Open the Actor's Standby URL in a browser. The navigation variant is selected wi
 | --- | --- | --- |
 | `?option=1` | **Detached** | Mode switcher lives in the header meta row, above the tabs |
 | `?option=2` | **Inline** | Mode switcher sits in the tab bar, separated by a divider |
-| `?option=3` | **No changes** | Leaves the navigation as it is — one tab bar, no switcher, and whatever doesn't apply to the Actor is disabled |
+| `?option=3` | **No changes** | Leaves the navigation as it is — one tab bar, no switcher, a single `Server` tab holding the endpoints and MCP sections, and whatever doesn't apply to the Actor is disabled |
 
 Without `option`, it opens variant 1.
 
@@ -28,11 +28,15 @@ The dark bar along the bottom is prototype scaffolding, not part of the design. 
 
 - **Variant** — switch between the three navigation options
 - **Server mode / Service mode** — flips the product wording everywhere at once, for comparing the two names in place
+- **Mode word** (off by default) — the switcher segments read `Run` / `Server`; tick it to read `Run mode` / `Server mode` instead
 - **Run support / Server support** — what the Actor declares it can do; turning one off is how you see the unsupported-mode states
 - **No hiding** (on by default) — keeps the mode switcher visible when a mode is unsupported, greyed out rather than removed; untick it to see the old hide-the-switcher behaviour
 - **Single-tenant / Multi-tenant** — drives the tab capability rules
 - **Developer** — adds the Source / Publishing / Settings tabs
 - **Standby flow / Reshuffle flow** — plays the onboarding walkthroughs
+
+Neither naming control touches option 3. That option proposes no navigation change, so
+it keeps today's `Server` tab whatever the dock says — and it has no switcher to label.
 
 ## Running it locally
 

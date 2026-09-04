@@ -177,7 +177,7 @@ test.describe('Always show modes', () => {
 
     await setDock(page, { run: true, server: false, alwaysShowModes: true });
     expect(await tabStates(page)).toEqual(
-      expect.arrayContaining(['Input', 'Server✗', 'MCP✗', 'Requests✗']),
+      expect.arrayContaining(['Input', 'Server✗', 'Requests✗']),
     );
 
     await setDock(page, { run: false, server: true, alwaysShowModes: true });
@@ -275,12 +275,14 @@ test.describe('Mode naming select', () => {
     }
   });
 
-  test('renames the Server tab in option 3', async ({ page }) => {
+  // Option 3 changes nothing, so the naming experiment doesn't apply to it.
+  test('leaves option 3 alone', async ({ page }) => {
     await openPrototype(page, OPTION.disabled);
     await setServerNoun(page, 'Service');
 
-    expect(await tabStates(page)).toContain('Service');
-    expect(await tabStates(page)).not.toContain('Server');
+    expect(await tabStates(page)).toContain('Server');
+    expect(await tabStates(page)).not.toContain('Service');
+    expect(await placeholderText(page)).not.toContain('Service mode');
   });
 
   test('carries the naming into the tooltip and its docs link', async ({ page }) => {
@@ -321,5 +323,27 @@ test.describe('Mode word', () => {
   test('is off by default', async ({ page }) => {
     await openPrototype(page, OPTION.detached);
     expect((await modeSwitcher(page))?.map(({ label }) => label)).toEqual(['Run', 'Server']);
+  });
+});
+
+test.describe('Option 3 — one Server tab', () => {
+  test('has no separate MCP tab; endpoints and MCP live inside Server', async ({ page }) => {
+    await openPrototype(page, OPTION.disabled);
+
+    const states = await tabStates(page);
+    expect(states).toContain('Server');
+    expect(states).not.toContain('MCP');
+
+    await page.locator('[role="tab"]:not([data-mode])', { hasText: 'Server' }).click();
+    expect(await placeholderText(page)).toContain('endpoints and MCP sections');
+  });
+
+  // Options 1 and 2 still split them, so this is option 3's rule, not a global one.
+  test('options 1 and 2 keep MCP as its own tab', async ({ page }) => {
+    for (const option of [OPTION.detached, OPTION.inline]) {
+      await openPrototype(page, option);
+      await page.locator('[data-mode="server"]').click();
+      expect(await tabStates(page)).toContain('MCP');
+    }
   });
 });
