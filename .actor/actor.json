@@ -1,0 +1,17 @@
+{
+    "actorSpecification": 1,
+    "name": "standby-navigation-prototype",
+    "title": "Actor Servers navigation prototype",
+    "description": "Clickable prototype of the Actor detail navigation for Run mode and Server mode, served over Actor Standby.",
+    "version": "0.1",
+    "buildTag": "latest",
+    "meta": {
+        "generatedBy": "Claude Code with Claude Opus 5"
+    },
+    "usesStandbyMode": true,
+    "defaultMemoryMbytes": 1024,
+    "minMemoryMbytes": 1024,
+    "dockerfile": "../Dockerfile",
+    "readme": "./README.md",
+    "input": "./input_schema.json"
+}
